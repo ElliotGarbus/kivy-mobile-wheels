@@ -20,6 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # macos-14's system python3 is Homebrew-managed (PEP 668) and refuses
+      # bare `pip install`. The recipes need an unmanaged host Python to drive
+      # cibuildwheel with — this is the *host* interpreter, unrelated to the
+      # cp315 iOS target the recipes cross-build.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Show pinned inputs
         run: |
           echo "Building ${{ inputs.target }}"
