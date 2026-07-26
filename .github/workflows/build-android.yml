@@ -53,15 +53,26 @@ jobs:
       # the library. If that differs from what is committed, the two have
       # drifted — which on-device means a black screen with nothing in logcat,
       # so it is caught here instead.
+      # `git status --porcelain`, not `git diff`: diff only reports tracked
+      # files, so before the glue was committed this check passed on an empty
+      # comparison and proved nothing. Untracked output here means the recipe
+      # extracted a version that is not in the repo.
       - name: SDL glue matches the committed copy
         if: inputs.target == 'sdl2'
         run: |
-          if ! git diff --quiet -- recipes/android/sdl-glue; then
+          changes="$(git status --porcelain -- recipes/android/sdl-glue)"
+          if [[ -n "$changes" ]]; then
             echo "::error::sdl-glue differs from the pinned tarball extraction."
-            git diff --stat -- recipes/android/sdl-glue
+            echo "$changes"
+            git diff -- recipes/android/sdl-glue | head -50
             exit 1
           fi
-          echo "glue matches"
+          tracked="$(git ls-files recipes/android/sdl-glue | wc -l)"
+          if [[ "$tracked" -eq 0 ]]; then
+            echo "::error::no glue is committed, so this check verifies nothing."
+            exit 1
+          fi
+          echo "glue matches ($tracked files)"
 
       # TODO(Phase 2): wheel recipes only — flat .libs/ with unchanged sonames,
       # every .so at p_align=0x4000. sdl2.sh already verifies its own output.
