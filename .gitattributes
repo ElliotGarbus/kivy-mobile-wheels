@@ -9,3 +9,7 @@
 *.yml text eol=lf
 *.toml text eol=lf
 *.py text eol=lf
+
+# The captured SDL glue is byte-compared in CI against a fresh extraction from
+# the release tarball, which is LF. Don't leave that to autocrlf heuristics.
+*.java text eol=lf
