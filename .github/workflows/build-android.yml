@@ -35,13 +35,39 @@ jobs:
       - name: Provide /system/bin/sh
         run: sudo mkdir -p /system/bin && sudo ln -sf /bin/sh /system/bin/sh
 
-      # TODO(Phase 2): NDK r27.3.13750724 + JDK 17, then run the recipe.
-      #   bash recipes/android/${{ inputs.target }}.sh ${{ matrix.abi }}
-      #
-      # TODO(Phase 2): verification gate before upload — see
-      #   recipes/android/README.md. Every .so at p_align=0x4000, flat .libs/
-      #   with unchanged sonames, sdl-glue matching a fresh tarball extraction.
-      - name: Not implemented
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install NDK r27.3.13750724
         run: |
-          echo "::error::Phase 2 has not ported the Android recipes yet."
-          exit 1
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "ndk;27.3.13750724" "cmake;3.22.1" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
+
+      - name: Run recipe
+        run: bash recipes/android/${{ inputs.target }}.sh ${{ matrix.abi }}
+
+      # sdl2.sh writes the Java glue from the same verified tarball that built
+      # the library. If that differs from what is committed, the two have
+      # drifted — which on-device means a black screen with nothing in logcat,
+      # so it is caught here instead.
+      - name: SDL glue matches the committed copy
+        if: inputs.target == 'sdl2'
+        run: |
+          if ! git diff --quiet -- recipes/android/sdl-glue; then
+            echo "::error::sdl-glue differs from the pinned tarball extraction."
+            git diff --stat -- recipes/android/sdl-glue
+            exit 1
+          fi
+          echo "glue matches"
+
+      # TODO(Phase 2): wheel recipes only — flat .libs/ with unchanged sonames,
+      # every .so at p_align=0x4000. sdl2.sh already verifies its own output.
+      - uses: actions/upload-artifact@v4
+        if: inputs.target != 'sdl2'
+        with:
+          name: ${{ inputs.target }}-${{ matrix.abi }}
+          path: .build/android/wheelhouse/*.whl
+          if-no-files-found: error
