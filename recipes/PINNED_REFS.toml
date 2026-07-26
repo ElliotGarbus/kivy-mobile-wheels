@@ -32,8 +32,19 @@ kivy/pyjnius rather than advancing this fork.
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "d6c598cac53ce9d58d7f6d457f295842491f4e99"
+commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
 note = """
+This is the commit that actually built the vendored iOS Kivy wheels currently
+running on the simulator — recovered from the cached checkout under
+.build/ios-wheels/kivy on the build Mac, not inferred (kivyforge
+docs/design/dev/mobile-wheels-phase0-inventory.md). Dated 2026-06-22.
+
+Deliberately NOT master HEAD. Pinning HEAD would rebuild wheels nobody has run
+and invalidate the sha256s already committed in
+examples/mobile/hello-kivy/pylock.ios.toml, forcing a re-lock and a fresh
+round of device validation for no gain. Bump this when there is a reason to,
+and re-validate when you do.
+
 Kivy 3.0 pre-release. Switch to a versioned sdist and delete this entry once
 3.0 is tagged — a release tarball + SHA-256 is a stronger pin than a commit.
 """
@@ -41,8 +52,11 @@ Kivy 3.0 pre-release. Switch to a versioned sdist and delete this entry once
 [ios.pyobjus]
 repo = "https://github.com/kivy/pyobjus"
 ref = "master"
-commit = "5a43e83c50973149d4c11b8a92f422e692180f8f"
+commit = "0c229e75248c14652b6764db5730eeb30bab95ed"
 note = """
+As above: the commit that actually built the vendored pyobjus iOS wheels,
+recovered from the cached checkout, dated 2025-12-29. Not master HEAD.
+
 master deliberately avoids upstream PR #105 (Obj-C protocol loading rework),
 which is flagged "DO NOT MERGE YET". Re-check that this is still true before
 ever bumping this pin.
