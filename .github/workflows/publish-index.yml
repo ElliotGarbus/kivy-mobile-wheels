@@ -1,5 +1,5 @@
 # Regenerate the PEP 503 index from published release assets and deploy it to
-# Pages. SKELETON — Phase 5 wires up the deploy.
+# Pages.
 #
 # Triggered by release publication rather than push: the index describes what
 # has been released, so releases are the only thing that can change it.
@@ -33,13 +33,40 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python index-gen/generate_index.py --output public/simple
 
-      # TODO(Phase 5): upload public/ and deploy to Pages
-      # (actions/upload-pages-artifact + actions/deploy-pages), then verify the
-      # published index actually resolves before pointing any kivyforge example
-      # at it:
-      #   pip download --no-deps --index-url <pages-url>/simple/ \
-      #     --platform android_24_arm64_v8a --only-binary :all: kivy
-      - name: Not implemented
+      # A bare directory listing at the root is unhelpful to anyone who lands
+      # here from a lock file; point them at the index and at what this is for.
+      - name: Landing page
         run: |
-          echo "::error::Phase 5 has not wired up Pages deployment yet."
-          exit 1
+          cat > public/index.html <<'HTML'
+          <!DOCTYPE html>
+          <html><head><meta charset="utf-8"><title>kivy-mobile-wheels</title></head>
+          <body>
+          <h1>kivy-mobile-wheels</h1>
+          <p>A PEP 503 index of Android and iOS wheels for Kivy, pyjnius and
+          pyobjus, built for
+          <a href="https://github.com/ElliotGarbus/kivyforge">kivyforge</a>
+          development.</p>
+          <pre>extra_index_urls = ["https://elliotgarbus.github.io/kivy-mobile-wheels/simple/"]</pre>
+          <p><a href="simple/">Browse the index</a> &middot;
+          <a href="https://github.com/ElliotGarbus/kivy-mobile-wheels">Source</a></p>
+          <p><strong>This is a bridge.</strong> It is retired once these
+          projects publish mobile wheels to PyPI themselves.</p>
+          </body></html>
+          HTML
+
+      - name: Show what will be published
+        run: find public -name '*.html' | sort
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build-index
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
