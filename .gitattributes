@@ -1,0 +1,11 @@
+# The recipes are authored on Windows but only ever run on Linux and macOS CI.
+# bash rejects CRLF outright — `set -euo pipefail\r` becomes "invalid option
+# name" — so a Windows checkout with autocrlf=true would commit scripts that
+# cannot run anywhere they are meant to.
+*.sh text eol=lf
+
+# Consumed by CI and by Python's tomllib/argparse; keep them LF for the same
+# reason, and so diffs stay clean across machines.
+*.yml text eol=lf
+*.toml text eol=lf
+*.py text eol=lf

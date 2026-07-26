@@ -1,0 +1,51 @@
+# Exact upstream commits each recipe builds from.
+#
+# Bumping any of these is a deliberate, reviewed commit to this file. Recipes
+# MUST read the commit from here and MUST NOT default to a branch name: a
+# release rebuilt next month has to produce the same inputs as one built today,
+# and a branch HEAD silently does not.
+#
+# `ref` records which branch/tag the commit was taken from, for context only.
+# It is never what gets checked out.
+#
+# Recipes NOT listed here are pinned by construction — they build from a
+# versioned release tarball or PyPI sdist with a recorded SHA-256, which is a
+# stronger pin than a git commit. That covers Android SDL2 (2.32.10 and its
+# three satellites) and Kivy 2.3.1.
+#
+# Resolved 2026-07-26 via `git ls-remote <repo> <ref>`.
+
+[android.pyjnius]
+repo = "https://github.com/ElliotGarbus/pyjnius"
+ref = "spike/android-universal-wheel"
+commit = "0342053c74785c2833586aa8e97527a209bda48c"
+note = """
+Not merged upstream. Verified 2026-07-26: this branch is 20 commits ahead of
+kivy/pyjnius@master and 0 behind, carrying the Android wheel work
+(.github/workflows/android-wheels.yml, jnius/jnius_jvm_android.pxi,
+pyproject.toml, setup.py). kivy/pyjnius has no Android wheel CI.
+
+Re-check before bumping: if this lands upstream, repoint `repo` at
+kivy/pyjnius rather than advancing this fork.
+"""
+
+[ios.kivy]
+repo = "https://github.com/kivy/kivy"
+ref = "master"
+commit = "d6c598cac53ce9d58d7f6d457f295842491f4e99"
+note = """
+Kivy 3.0 pre-release. Switch to a versioned sdist and delete this entry once
+3.0 is tagged — a release tarball + SHA-256 is a stronger pin than a commit.
+"""
+
+[ios.pyobjus]
+repo = "https://github.com/kivy/pyobjus"
+ref = "master"
+commit = "5a43e83c50973149d4c11b8a92f422e692180f8f"
+note = """
+master deliberately avoids upstream PR #105 (Obj-C protocol loading rework),
+which is flagged "DO NOT MERGE YET". Re-check that this is still true before
+ever bumping this pin.
+
+pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
+"""

@@ -1,0 +1,43 @@
+# iOS wheel builds. SKELETON — Phase 4 fills in the build steps.
+#
+# macOS runners are free on public repos. Manual dispatch only: builds are slow
+# (Kivy's native deps — SDL3, ANGLE, ThorVG — take a while) and inputs change
+# rarely.
+name: build-ios
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which recipe to build
+        required: true
+        type: choice
+        options: [kivy-3.0-sdl3, pyobjus]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show pinned inputs
+        run: |
+          echo "Building ${{ inputs.target }}"
+          cat recipes/PINNED_REFS.toml
+
+      # cibuildwheel drives the iOS cross-build with the CPython macOS
+      # framework and refuses to sudo-install it itself. The local scripts stop
+      # and ask the user to do it; CI installs it non-interactively instead.
+      # TODO(Phase 4): install python-3.15.0b2-macos11.pkg.
+
+      # TODO(Phase 4): run the recipe, reading its commit from PINNED_REFS.toml
+      # rather than defaulting a branch name:
+      #   bash recipes/ios/${{ inputs.target }}.sh
+      #
+      # Deployment target MUST be injected via CIBW_ENVIRONMENT_IOS, not just
+      # exported — iOS builds run in an isolated cross-venv and cibuildwheel
+      # otherwise tags wheels ios_13_0_* instead of ios_16_0_*.
+      - name: Not implemented
+        run: |
+          echo "::error::Phase 4 has not ported the iOS recipes yet."
+          exit 1

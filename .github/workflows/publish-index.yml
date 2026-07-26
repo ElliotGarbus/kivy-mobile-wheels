@@ -1,0 +1,45 @@
+# Regenerate the PEP 503 index from published release assets and deploy it to
+# Pages. SKELETON — Phase 5 wires up the deploy.
+#
+# Triggered by release publication rather than push: the index describes what
+# has been released, so releases are the only thing that can change it.
+name: publish-index
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Generate index
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python index-gen/generate_index.py --output public/simple
+
+      # TODO(Phase 5): upload public/ and deploy to Pages
+      # (actions/upload-pages-artifact + actions/deploy-pages), then verify the
+      # published index actually resolves before pointing any kivyforge example
+      # at it:
+      #   pip download --no-deps --index-url <pages-url>/simple/ \
+      #     --platform android_24_arm64_v8a --only-binary :all: kivy
+      - name: Not implemented
+        run: |
+          echo "::error::Phase 5 has not wired up Pages deployment yet."
+          exit 1

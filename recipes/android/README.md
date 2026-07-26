@@ -1,0 +1,69 @@
+# Android recipes
+
+**Status: skeletons.** The proven procedure lives in kivyforge's
+`docs/design/dev/android-wheel-build-recipe.md`, which is hash-verified and was
+used to build the wheels currently validated on an x86_64 emulator and a
+Pixel 8a. Phase 2 ports it here; these files record what each script must do so
+the port is transcription rather than rediscovery.
+
+| Script | Builds | Pinned by |
+|---|---|---|
+| `sdl2.sh` | SDL2 2.32.10 + image/mixer/ttf, per ABI | source tarball SHA-256 |
+| `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 |
+| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (unreleased) |
+| `pyjnius.sh` | pyjnius 1.7.0 | `PINNED_REFS.toml` |
+
+ABIs: `arm64-v8a`, `x86_64`. 64-bit only — the python.org Android runtime ships
+no 32-bit build. Target `android_24_*`; NDK **r27.3.13750724**, JDK 17.
+
+## Traps already paid for — do not rediscover these
+
+**`/system/bin/sh` must exist on the build host.** CPython picks the shell for
+`subprocess(..., shell=True)` from `hasattr(sys, "getandroidapilevel")`, and
+cibuildwheel's cross-build interpreter *is* Android CPython — so any `setup.py`
+that shells out looks for Android's shell path on the Linux host and dies with
+`FileNotFoundError: '/system/bin/sh'`. Affects any package that shells out, not
+just Kivy.
+
+```bash
+sudo mkdir -p /system/bin && sudo ln -s /bin/sh /system/bin/sh
+```
+
+**16 KB page alignment is not the NDK r27 default.** Pass
+`-Wl,-z,max-page-size=16384` explicitly when building SDL2. cibuildwheel's
+Android target already passes it for extensions; SDL2 built by hand does not
+get it for free. Android 15/16 devices with 16 KB pages will not load a
+4 KB-aligned `.so`.
+
+**`KIVY_SDL2_PATH`, not pkg-config.** cibuildwheel overrides `PKG_CONFIG_LIBDIR`
+with its own prefix, so Kivy's pkg-config probe can never see an externally
+built SDL2 — it reports `use_sdl2 = 0` and then fails on `'SDL.h' file not
+found`. Use Kivy's documented manual path instead:
+`KIVY_SDL2_PATH=<prefix>/include/SDL2:<prefix>/lib`.
+
+**auditwheel repair must be disabled** (`CIBW_REPAIR_WHEEL_COMMAND_ANDROID=""`).
+auditwheel renames grafted libraries with a hash suffix
+(`libSDL2-1664d2a2.so`), and Android's `System.loadLibrary("SDL2")` resolves the
+*exact* filename `libSDL2.so`. A repaired wheel builds, passes every alignment
+check, and throws `UnsatisfiedLinkError` at app start. Graft the SDL family in
+afterwards as a flat `.libs/` with sonames unchanged.
+
+**Kivy sets `can_use_cython = False` on Android**, so the sdist's 45 `.pyx`
+must be pre-cythonized before the build. `KIVY_FAKE_BUILDEXT` does not help —
+it returns an empty ext list, so `config.pxi` never gets written.
+
+**The SDL Java glue is a matched pair with `libSDL2.so`.** Extract
+`android-project/app/src/main/java/org/libsdl/app/*.java` from the same
+verified tarball into `sdl-glue/<version>/`, in the same commit. See the repo
+README for what a mismatch does (black screen, no logcat output).
+
+## Verification gate
+
+Every wheel, before it is published:
+
+1. Every `.so` reports `p_align = 0x4000` — Kivy's own extensions *and* the
+   grafted SDL family.
+2. Top-level `.libs/` is flat, sonames unchanged (no hash suffixes, no per-ABI
+   subdirectories).
+3. Extensions carry plain `DT_NEEDED` on `libSDL2.so`.
+4. `sdl-glue/<version>/` matches a fresh extraction from the pinned tarball.

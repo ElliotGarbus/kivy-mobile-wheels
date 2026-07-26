@@ -1,0 +1,47 @@
+# Android wheel builds. SKELETON — Phase 2 fills in the build steps.
+#
+# Manual dispatch only for now: these builds are slow and their inputs change
+# rarely, so there is nothing useful to trigger on push.
+name: build-android
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which recipe to build
+        required: true
+        type: choice
+        options: [sdl2, kivy-2.3.1-sdl2, kivy-3.0-sdl3, pyjnius]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show pinned inputs
+        run: |
+          echo "Building ${{ inputs.target }} for ${{ matrix.abi }}"
+          cat recipes/PINNED_REFS.toml
+
+      # Kivy's setup.py shells out during the build, and cibuildwheel's
+      # cross-build interpreter IS Android CPython, which looks for Android's
+      # shell path on this Linux host. Without this the build dies with
+      # FileNotFoundError: '/system/bin/sh'.
+      - name: Provide /system/bin/sh
+        run: sudo mkdir -p /system/bin && sudo ln -sf /bin/sh /system/bin/sh
+
+      # TODO(Phase 2): NDK r27.3.13750724 + JDK 17, then run the recipe.
+      #   bash recipes/android/${{ inputs.target }}.sh ${{ matrix.abi }}
+      #
+      # TODO(Phase 2): verification gate before upload — see
+      #   recipes/android/README.md. Every .so at p_align=0x4000, flat .libs/
+      #   with unchanged sonames, sdl-glue matching a fresh tarball extraction.
+      - name: Not implemented
+        run: |
+          echo "::error::Phase 2 has not ported the Android recipes yet."
+          exit 1
