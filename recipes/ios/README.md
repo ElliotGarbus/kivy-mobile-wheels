@@ -27,6 +27,14 @@ Slices: `arm64_iphoneos`, `arm64_iphonesimulator`, `x86_64_iphonesimulator`.
 refuses to sudo-install outside CI. A CI runner should install it
 non-interactively rather than exiting 1.
 
+**`macos-14`'s system `python3` is Homebrew-managed (PEP 668).** A bare
+`pip install cibuildwheel` fails there with `error:
+externally-managed-environment` — this doesn't show up on a normal dev Mac,
+only on GitHub-hosted runners. Add `actions/setup-python@v5` before running
+the recipe to get an unmanaged host Python. This is the interpreter that
+*drives* cibuildwheel; it is unrelated to the cp315 iOS target being
+cross-built. (Found by pyobjus's first CI run, `build-ios.yml`.)
+
 **Deployment target must go through `CIBW_ENVIRONMENT_IOS`.** Exporting
 `IPHONEOS_DEPLOYMENT_TARGET` in the shell is not enough — iOS builds run in an
 isolated cross-venv and cibuildwheel defaults the wheel tag to `13.0` unless
