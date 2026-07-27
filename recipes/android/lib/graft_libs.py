@@ -11,8 +11,11 @@ So the libraries go in verbatim, sonames untouched, in a **flat** directory —
 kivyforge's staging rejects per-ABI subdirectories, and its jniLibs flattening
 depends on the names being exactly what ``DT_NEEDED`` asks for.
 
-Also verifies 16 KB page alignment across the whole wheel, since that is the
-property most easily lost and least visibly.
+Also gates the finished wheel on the two properties most easily lost and least
+visibly: 16 KB page alignment across every ``.so``, and that every ``DT_NEEDED``
+resolves to something the wheel or the OS provides (see ``check_needed.py``).
+Both failures produce a wheel that builds and installs cleanly and then breaks
+on a device.
 
 ``libdir`` may be ``-`` for wheels with nothing to graft (pyjnius bundles no
 third-party libraries). The wheel is still unpacked, verified and repacked —
@@ -31,7 +34,25 @@ import sys
 import zipfile
 from pathlib import Path
 
+from check_needed import check as unresolved_dependencies
+
 WANT_ALIGN = 0x4000  # 16 KB
+
+
+def verify_dependencies(wheel: Path) -> bool:
+    """Every ``DT_NEEDED`` in the finished wheel resolves. See check_needed.py."""
+    problems = unresolved_dependencies(wheel)
+    if not problems:
+        print("  every DT_NEEDED resolves")
+        return True
+    for line in problems:
+        print(f"  FAIL {line}", file=sys.stderr)
+    print(
+        "graft: the wheel is missing a library it links against. It will "
+        "install and then fail at dlopen on device, usually silently.",
+        file=sys.stderr,
+    )
+    return False
 
 
 def p_align_values(data: bytes) -> list[int]:
@@ -97,6 +118,8 @@ def main() -> int:
             print("graft: 16 KB alignment check failed.", file=sys.stderr)
             return 1
         print(f"  nothing to graft; {count} .so all at p_align=0x4000")
+        if not verify_dependencies(wheel):
+            return 1
         out = outdir / wheel.name
         shutil.copy2(wheel, out)
         print(f"  {out.name}")
@@ -142,6 +165,10 @@ def main() -> int:
             if path.is_file():
                 zf.write(path, path.relative_to(work))
     shutil.rmtree(work)
+
+    # After repacking, so this reads the wheel that actually ships.
+    if not verify_dependencies(out):
+        return 1
 
     digest = hashlib.sha256(out.read_bytes()).hexdigest()
     print(f"  {out.name}")

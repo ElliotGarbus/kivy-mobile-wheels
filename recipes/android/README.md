@@ -3,10 +3,10 @@
 | Script | Builds | Pinned by | Status |
 |---|---|---|---|
 | `sdl2.sh` | SDL2 2.32.10 + image/mixer/ttf, per ABI | source tarball SHA-256 | **ported** |
-| `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 | **ported** |
+| `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 | **ported, published** |
 | `sdl3.sh` | SDL3 family, per ABI | release SHA-256 (ttf from source) | **ported** |
-| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (unreleased) | **ported, unrun** |
-| `pyjnius.sh` | pyjnius 1.7.0 | `PINNED_REFS.toml` | **ported** |
+| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (unreleased) | **ported, published** |
+| `pyjnius.sh` | pyjnius 1.7.0 | `PINNED_REFS.toml` | **ported, published** |
 
 ## Where the procedure came from
 
@@ -68,6 +68,15 @@ afterwards as a flat `.libs/` with sonames unchanged.
 must be pre-cythonized before the build. `KIVY_FAKE_BUILDEXT` does not help —
 it returns an empty ext list, so `config.pxi` never gets written.
 
+**SDL3 needs `libc++_shared.so` in the wheel and SDL2 did not.** Kivy's
+`_img_sdl3` carries a `DT_NEEDED` on the NDK's shared C++ runtime; nothing in
+the SDL2 line did. Nothing about the build fails if it is missing — the app
+runs, and Kivy reports only `img_sdl3 ... ignored` among its image providers,
+with the real `ImportError: dlopen failed` visible only at debug log level. The
+symptom is that PNGs silently do not load. `sdl3.sh` stages it from the sysroot
+and `graft_libs.py` ships it; `check_needed.py` is what makes a repeat of this
+class of bug fail the build instead of the app.
+
 The working build's environment, read from `build-<abi>.log`:
 
 ```
@@ -104,8 +113,20 @@ README for what a mismatch does (black screen, no logcat output).
 Every wheel, before it is published:
 
 1. Every `.so` reports `p_align = 0x4000` — Kivy's own extensions *and* the
-   grafted SDL family.
-2. Top-level `.libs/` is flat, sonames unchanged (no hash suffixes, no per-ABI
+   grafted SDL family. (`graft_libs.py`)
+2. Every `DT_NEEDED` resolves to a library the wheel ships or the OS provides.
+   (`check_needed.py`, run from `graft_libs.py`, so local builds are gated too.)
+3. Top-level `.libs/` is flat, sonames unchanged (no hash suffixes, no per-ABI
    subdirectories).
-3. Extensions carry plain `DT_NEEDED` on `libSDL2.so`.
-4. `sdl-glue/<version>/` matches a fresh extraction from the pinned tarball.
+4. Extensions carry plain `DT_NEEDED` on `libSDL2.so`.
+5. `sdl-glue/<version>/` matches a fresh extraction from the pinned tarball.
+   (`build-android.yml`)
+6. The wheel resolves from the deployed index by name, version and platform tag,
+   with a matching `sha256`. (`index-gen/verify_index.py`, run by
+   `publish-index.yml` after each deployment.)
+
+Gates 1, 2 and 6 exist because the failure they catch is *silent*: the wheel
+builds, installs, and passes everything else. There is deliberately no on-device
+test in CI — gate 2 is the static stand-in for the one class of bug that would
+otherwise need an emulator, and it is calibrated against the real
+`libc++_shared.so` regression.
