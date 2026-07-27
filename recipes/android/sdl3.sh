@@ -180,5 +180,31 @@ count="$(ls "$PREFIX/lib/$ABI"/libSDL3*.so | wc -l)"
   exit 1
 }
 
+# --- the Java glue, from the same verified .aar --------------------------------
+# Same matched-pair rule as SDL2: SDLActivity compares its compiled-in version
+# against nativeGetVersion() and, on mismatch, aborts onCreate before creating
+# the surface while logging nothing. Committing the glue that shipped in the
+# same .aar as libSDL3.so is what makes that mismatch impossible for anything
+# vendoring from here (kivyforge's templates/sdl3).
+#
+# Unlike SDL2 there is no source tarball to read this from — the .aar carries
+# it as classes-sources.jar, which unwrap_sdl3_aar.py has already extracted to
+# $PREFIX/java.
+GLUE_DEST="$HERE/sdl-glue-sdl3/$SDL3_VERSION"
+echo "==> capturing Java glue -> ${GLUE_DEST#"$REPO_ROOT/"}"
+rm -rf "$GLUE_DEST"
+mkdir -p "$GLUE_DEST"
+cp -r "$PREFIX/java/." "$GLUE_DEST/"
+cp "$BUILD/sdl3-license/LICENSE.txt" "$GLUE_DEST/LICENSE-SDL.txt" 2>/dev/null || \
+  unzip -p "$SRC/SDL3-android.zip" LICENSE.txt > "$GLUE_DEST/LICENSE-SDL.txt"
+printf '#define SDL_MAJOR_VERSION   %s\n#define SDL_MINOR_VERSION   %s\n#define SDL_MICRO_VERSION   %s\n' \
+  "${SDL3_VERSION%%.*}" \
+  "$(echo "$SDL3_VERSION" | cut -d. -f2)" \
+  "${SDL3_VERSION##*.}" > "$GLUE_DEST/SDL_REVISION.txt"
+
+glue_count="$(find "$GLUE_DEST" -name '*.java' | wc -l)"
+[[ "$glue_count" -gt 0 ]] || { echo "sdl3: no Java glue captured" >&2; exit 1; }
+echo "  $glue_count java sources + LICENSE + SDL_REVISION"
+
 echo
 echo "SDL3 family for $ABI assembled at $PREFIX"

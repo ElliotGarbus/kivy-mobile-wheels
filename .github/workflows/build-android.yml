@@ -1,7 +1,7 @@
-# Android wheel builds. SKELETON — Phase 2 fills in the build steps.
+# Android wheel builds.
 #
-# Manual dispatch only for now: these builds are slow and their inputs change
-# rarely, so there is nothing useful to trigger on push.
+# Manual dispatch only: these builds are slow and their inputs change rarely,
+# so there is nothing useful to trigger on push.
 name: build-android
 
 on:
@@ -70,35 +70,37 @@ jobs:
       - name: Run recipe
         run: bash recipes/android/${{ inputs.target }}.sh ${{ matrix.abi }}
 
-      # sdl2.sh writes the Java glue from the same verified tarball that built
-      # the library. If that differs from what is committed, the two have
-      # drifted — which on-device means a black screen with nothing in logcat,
-      # so it is caught here instead.
+      # Each SDL recipe writes its Java glue from the same verified artifact
+      # that produced the library — the tarball for SDL2, the .aar for SDL3.
+      # If that differs from what is committed, the two have drifted, which
+      # on-device means a black screen with nothing in logcat.
+      #
       # `git status --porcelain`, not `git diff`: diff only reports tracked
       # files, so before the glue was committed this check passed on an empty
       # comparison and proved nothing. Untracked output here means the recipe
       # extracted a version that is not in the repo.
-      # Runs whenever sdl2.sh ran, which includes the Kivy targets that build
-      # it as a dependency — not just the standalone sdl2 target.
+      #
+      # Runs for any target whose job ran an SDL recipe, including the Kivy
+      # ones that build their SDL line as a dependency.
       - name: SDL glue matches the committed copy
-        if: inputs.target == 'sdl2' || inputs.target == 'kivy-2.3.1-sdl2'
+        if: >-
+          inputs.target == 'sdl2' || inputs.target == 'kivy-2.3.1-sdl2' ||
+          inputs.target == 'sdl3' || inputs.target == 'kivy-3.0-sdl3'
         run: |
-          changes="$(git status --porcelain -- recipes/android/sdl-glue)"
+          changes="$(git status --porcelain -- recipes/android/sdl-glue recipes/android/sdl-glue-sdl3)"
           if [[ -n "$changes" ]]; then
             echo "::error::sdl-glue differs from the pinned tarball extraction."
             echo "$changes"
-            git diff -- recipes/android/sdl-glue | head -50
+            git diff -- recipes/android/sdl-glue recipes/android/sdl-glue-sdl3 | head -50
             exit 1
           fi
-          tracked="$(git ls-files recipes/android/sdl-glue | wc -l)"
+          tracked="$(git ls-files recipes/android/sdl-glue recipes/android/sdl-glue-sdl3 | wc -l)"
           if [[ "$tracked" -eq 0 ]]; then
             echo "::error::no glue is committed, so this check verifies nothing."
             exit 1
           fi
           echo "glue matches ($tracked files)"
 
-      # TODO(Phase 2): wheel recipes only — flat .libs/ with unchanged sonames,
-      # every .so at p_align=0x4000. sdl2.sh already verifies its own output.
       # sdl2 and sdl3 assemble native dependencies for the Kivy recipes; they
       # produce no wheels, and if-no-files-found: error would fail the job.
       - uses: actions/upload-artifact@v7
