@@ -17,9 +17,11 @@ Three non-obvious things this has to get right, each of which cost a build:
 
 2. Only the extensions Kivy actually builds on Android may be cythonized —
    38 of the 45. Cythonizing all of them fails on desktop-only sources such as
-   ``window_x11.pyx``. The list is obtained by importing setup.py with
-   ``setuptools.setup`` intercepted, which is the only way to see the real
-   ``ext_modules`` for the configured platform.
+   ``window_x11.pyx``. They are captured from the same ``build_ext`` pass:
+   ``build_extension`` receives exactly the extensions the configured platform
+   builds, which is both simpler and more truthful than re-running setup.py
+   with ``setuptools.setup`` intercepted (executing that module twice in one
+   process is fragile — it exits non-zero on the second pass).
 
 3. Cythonize **serially**. Cython's parallel mode uses multiprocessing, whose
    workers re-import ``__main__``; run from a heredoc that is ``<stdin>`` and
@@ -50,16 +52,22 @@ EXPECTED_CONFIG = {
 }
 
 
-def write_config_pxi(src: Path) -> Path:
-    """Run build_ext far enough to emit config.pxi, then stop."""
+def configure(src: Path) -> tuple[Path, list[str]]:
+    """One build_ext pass: emit config.pxi and capture the Android extensions."""
     from setuptools.command import build_ext as build_ext_mod
 
+    captured: list = []
+
     # Kivy writes config.h/config.pxi/setupconfig.py at the top of
-    # build_extensions(), then compiles. No-op the per-extension compile so the
-    # configs land and the command returns without touching a compiler.
-    build_ext_mod.build_ext.build_extension = lambda self, ext: None
+    # build_extensions(), then compiles each extension. Replacing the
+    # per-extension compile both stops it before it touches a compiler and
+    # hands us exactly the extension list this platform builds.
+    def capture(self, ext):  # noqa: ANN001 - distutils signature
+        captured.append(ext)
+
+    build_ext_mod.build_ext.build_extension = capture
     # ...and the copy-back, which would otherwise look for the .so files the
-    # no-oped compile never produced.
+    # replaced compile never produced.
     build_ext_mod.build_ext.copy_extensions_to_source = lambda self: None
 
     # No --inplace: Kivy writes the configs to the source tree as well as the
@@ -68,13 +76,27 @@ def write_config_pxi(src: Path) -> Path:
     sys.argv = ["setup.py", "build_ext"]
     sys.path.insert(0, str(src))
     os.chdir(src)
-    runpy_globals = {"__file__": str(src / "setup.py"), "__name__": "__main__"}
-    exec(compile((src / "setup.py").read_text(), "setup.py", "exec"), runpy_globals)
+    exec(
+        compile((src / "setup.py").read_text(), "setup.py", "exec"),
+        {"__file__": str(src / "setup.py"), "__name__": "__main__"},
+    )
 
     config = src / "kivy" / "include" / "config.pxi"
     if not config.is_file():
         raise SystemExit(f"config.pxi was not generated at {config}")
-    return config
+
+    sources = [
+        source
+        for ext in captured
+        for source in ext.sources
+        if source.endswith(".pyx")
+    ]
+    if not sources:
+        raise SystemExit(
+            "no .pyx sources captured from build_ext; either the platform was "
+            "not detected as android or Kivy's build_extensions did not run."
+        )
+    return config, sources
 
 
 def check_config(config: Path) -> None:
@@ -97,53 +119,15 @@ def check_config(config: Path) -> None:
     print(f"config.pxi OK ({len(values)} DEFs, PLATFORM={values.get('PLATFORM')})")
 
 
-def android_pyx_sources(src: Path) -> list[str]:
-    """The .pyx Kivy actually builds on Android, via intercepted setup()."""
-    import setuptools
-
-    captured: dict = {}
-    original = setuptools.setup
-
-    def intercept(**kwargs):
-        captured.update(kwargs)
-
-    setuptools.setup = intercept
-    try:
-        sys.argv = ["setup.py", "--version"]
-        os.chdir(src)
-        exec(
-            compile((src / "setup.py").read_text(), "setup.py", "exec"),
-            {"__file__": str(src / "setup.py"), "__name__": "__main__"},
-        )
-    finally:
-        setuptools.setup = original
-
-    ext_modules = captured.get("ext_modules") or []
-    sources = []
-    for ext in ext_modules:
-        for source in ext.sources:
-            if source.endswith(".pyx"):
-                sources.append(source)
-    if not sources:
-        raise SystemExit(
-            "no .pyx sources captured from setup.py; the interception failed "
-            "or the platform was detected as something other than android."
-        )
-    return sources
-
-
 def main() -> int:
     if len(sys.argv) != 2:
         print(__doc__, file=sys.stderr)
         return 2
     src = Path(sys.argv[1]).resolve()
 
-    print("==> generating config.pxi")
-    config = write_config_pxi(src)
+    print("==> generating config.pxi and collecting Android extensions")
+    config, sources = configure(src)
     check_config(config)
-
-    print("==> collecting Android extension sources")
-    sources = android_pyx_sources(src)
     print(f"  {len(sources)} .pyx to cythonize")
 
     print("==> cythonizing (serial)")
