@@ -87,10 +87,26 @@ TTF_TARBALL="SDL3_ttf-$SDL3_TTF_VERSION.tar.gz"
 fetch "$BASE/SDL_ttf/releases/download/release-$SDL3_TTF_VERSION/$TTF_TARBALL" "$TTF_TARBALL"
 [[ -d "$SRC/SDL3_ttf-$SDL3_TTF_VERSION" ]] || tar -xzf "$SRC/$TTF_TARBALL" -C "$SRC"
 
+# SDL3_ttf's release tarball ships an EMPTY external/ — its vendored freetype
+# is a git submodule the tarball does not carry, so a VENDORED=ON build fails
+# with "No freetype sources found". (SDL2_ttf did bundle freetype; SDL3_ttf
+# does not.) The tree ships a fetch script for exactly this case.
+TTF_SRC="$SRC/SDL3_ttf-$SDL3_TTF_VERSION"
+if [[ ! -f "$TTF_SRC/external/freetype/CMakeLists.txt" ]]; then
+  echo "==> fetching SDL3_ttf vendored dependencies"
+  if [[ -x "$TTF_SRC/external/download.sh" ]]; then
+    (cd "$TTF_SRC/external" && ./download.sh)
+  else
+    echo "sdl3: external/download.sh missing; cannot obtain freetype" >&2
+    ls "$TTF_SRC/external" >&2 || true
+    exit 1
+  fi
+fi
+
 echo "==> building SDL3_ttf $SDL3_TTF_VERSION from source ($ABI)"
 TTF_BUILD="$BUILD/SDL3_ttf-$ABI"
 rm -rf "$TTF_BUILD"
-cmake -S "$SRC/SDL3_ttf-$SDL3_TTF_VERSION" -B "$TTF_BUILD" -G Ninja \
+cmake -S "$TTF_SRC" -B "$TTF_BUILD" -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" \
   -DANDROID_ABI="$ABI" \
   -DANDROID_PLATFORM=android-24 \
