@@ -4,7 +4,8 @@
 |---|---|---|---|
 | `sdl2.sh` | SDL2 2.32.10 + image/mixer/ttf, per ABI | source tarball SHA-256 | **ported** |
 | `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 | **ported** |
-| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (unreleased) | to do (Phase 3) |
+| `sdl3.sh` | SDL3 family, per ABI | release SHA-256 (ttf from source) | **ported** |
+| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (unreleased) | **ported, unrun** |
 | `pyjnius.sh` | pyjnius 1.7.0 | `PINNED_REFS.toml` | **ported** |
 
 ## Where the procedure came from
