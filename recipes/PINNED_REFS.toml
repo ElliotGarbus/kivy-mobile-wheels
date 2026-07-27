@@ -63,3 +63,19 @@ ever bumping this pin.
 
 pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 """
+
+# Kivy 3.0 for Android. Same source as the iOS build today, but kept as its own
+# entry so the two platforms can move independently — an Android-only SDL3
+# problem should not force an iOS rebuild.
+[android.kivy]
+repo = "https://github.com/kivy/kivy"
+ref = "master"
+commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
+note = """
+Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
+[ios.kivy] deliberately — same tree, validated on iOS.
+
+Its setup.py resolves Android SDL3 from <cwd>/dist/libs/<abi> and
+<cwd>/dist/include, using os.getcwd() rather than KIVY_DEPS_ROOT, so the
+recipe must assemble that tree inside the Kivy source. See SDL3-FINDINGS.md.
+"""
