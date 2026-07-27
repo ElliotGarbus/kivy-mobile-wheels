@@ -23,6 +23,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The recipes `pip install` cibuildwheel and Cython. ubuntu-latest's
+      # system python3 is PEP 668-managed and refuses that with
+      # externally-managed-environment — the same trap build-ios.yml hit on
+      # macos-14. This is the *host* interpreter driving cibuildwheel, not the
+      # cp314 Android target being cross-built.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
       - name: Show pinned inputs
         run: |
           echo "Building ${{ inputs.target }} for ${{ matrix.abi }}"
