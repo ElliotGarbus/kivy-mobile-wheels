@@ -158,10 +158,38 @@ cmake --install "$TTF_BUILD"
 # family uses so the assembly step below sees one consistent layout.
 mv -f "$PREFIX/lib/libSDL3_ttf.so" "$PREFIX/lib/$ABI/libSDL3_ttf.so"
 
+# --- the C++ runtime, which SDL3 needs and SDL2 did not ----------------------
+# Kivy's _img_sdl3 extension carries a DT_NEEDED on libc++_shared.so — the NDK's
+# shared C++ runtime. Nothing else in the SDL3 family does, and nothing in the
+# SDL2 line did, so this is easy to miss: the wheel builds, every check passes,
+# and at runtime Kivy reports only
+#
+#   [Image] Providers: ... (img_sdl3 ... ignored)
+#
+# with the real cause — ImportError: dlopen failed: library "libc++_shared.so"
+# not found — visible only at debug log level. The app runs, and silently
+# cannot load a PNG.
+#
+# It ships in the wheel rather than being staged by kivyforge so the wheel stays
+# self-contained, the same treatment the SDL family gets. It is already
+# 16 KB-aligned in NDK r27, so it passes the gate below unmodified.
+CXX_SHARED="$SYSROOT/usr/lib/$(
+  case "$ABI" in
+    arm64-v8a) echo aarch64-linux-android ;;
+    x86_64)    echo x86_64-linux-android ;;
+  esac
+)/libc++_shared.so"
+[[ -f "$CXX_SHARED" ]] || {
+  echo "sdl3: no libc++_shared.so at $CXX_SHARED" >&2
+  exit 1
+}
+cp -f "$CXX_SHARED" "$PREFIX/lib/$ABI/libc++_shared.so"
+echo "==> staged libc++_shared.so (required by Kivy's _img_sdl3)"
+
 # --- verify every library that will actually ship ----------------------------
 echo "==> verifying 16 KB alignment ($ABI)"
 fail=0
-for so in "$PREFIX/lib/$ABI"/libSDL3*.so; do
+for so in "$PREFIX/lib/$ABI"/*.so; do
   [[ -f "$so" ]] || continue
   align="$(readelf -lW "$so" | awk '/LOAD/ {print $NF; exit}')"
   if [[ "$align" != "0x4000" ]]; then
@@ -175,7 +203,7 @@ done
 
 count="$(ls "$PREFIX/lib/$ABI"/libSDL3*.so | wc -l)"
 [[ "$count" -eq 4 ]] || {
-  echo "sdl3: expected 4 libraries, found $count" >&2
+  echo "sdl3: expected 4 SDL3 libraries, found $count" >&2
   ls "$PREFIX/lib/$ABI" >&2
   exit 1
 }

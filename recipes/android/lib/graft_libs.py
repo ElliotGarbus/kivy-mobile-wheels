@@ -70,6 +70,9 @@ def main() -> int:
         # Both SDL generations; the Kivy 2.3.1 recipe passes an SDL2 prefix and
         # the Kivy 3 recipe an SDL3 one.
         libs = sorted(libdir.glob("libSDL*.so"))
+        # The NDK C++ runtime, when the recipe staged it: SDL3 builds need it
+        # (Kivy's _img_sdl3 has a DT_NEEDED on it) and SDL2 builds do not.
+        libs += sorted(libdir.glob("libc++_shared.so"))
         if not libs:
             print(f"graft: no libSDL*.so in {libdir}", file=sys.stderr)
             return 1
