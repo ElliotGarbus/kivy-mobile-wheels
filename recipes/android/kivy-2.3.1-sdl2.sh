@@ -105,9 +105,14 @@ export CIBW_ENABLE=cpython-prerelease
 # and exit — a failure that reads like a configuration error anywhere but here.
 echo "==> resolving the cibuildwheel build identifier"
 
+# Keep stderr: if cibuildwheel cannot enumerate, its reason is the diagnosis.
 ALL_IDS="$(python3 -m cibuildwheel --platform android \
-             --print-build-identifiers "$KIVY_SRC" 2>/dev/null || true)"
-BUILD_ID="$(printf '%s\n' "$ALL_IDS" | grep -E "^cp314-.*${CIBW_ABI}\$" | head -1)"
+             --print-build-identifiers "$KIVY_SRC" || true)"
+echo "  cibuildwheel offers: ${ALL_IDS:-<none>}"
+# `|| true` is load-bearing: grep exits 1 on no match, and under `set -e` with
+# pipefail that status kills the script at the assignment — before the
+# diagnostic below can report what went wrong.
+BUILD_ID="$(printf '%s\n' "$ALL_IDS" | grep -E "^cp314-.*${CIBW_ABI}\$" | head -1 || true)"
 if [[ -z "$BUILD_ID" ]]; then
   echo "kivy: no cp314 build identifier matching '$CIBW_ABI'." >&2
   echo "  cibuildwheel offers:" >&2
