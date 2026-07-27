@@ -11,7 +11,7 @@ on:
         description: Which recipe to build
         required: true
         type: choice
-        options: [sdl2, kivy-2.3.1-sdl2, kivy-3.0-sdl3, pyjnius]
+        options: [sdl2, sdl3, kivy-2.3.1-sdl2, kivy-3.0-sdl3, pyjnius]
 
 jobs:
   build:
@@ -60,8 +60,12 @@ jobs:
       # here, in the same job. (The recipe checks for it and fails with that
       # instruction rather than a confusing compile error.)
       - name: Build SDL2 first
-        if: startsWith(inputs.target, 'kivy-')
+        if: inputs.target == 'kivy-2.3.1-sdl2'
         run: bash recipes/android/sdl2.sh ${{ matrix.abi }}
+
+      - name: Assemble SDL3 first
+        if: inputs.target == 'kivy-3.0-sdl3'
+        run: bash recipes/android/sdl3.sh ${{ matrix.abi }}
 
       - name: Run recipe
         run: bash recipes/android/${{ inputs.target }}.sh ${{ matrix.abi }}
@@ -77,7 +81,7 @@ jobs:
       # Runs whenever sdl2.sh ran, which includes the Kivy targets that build
       # it as a dependency — not just the standalone sdl2 target.
       - name: SDL glue matches the committed copy
-        if: inputs.target == 'sdl2' || startsWith(inputs.target, 'kivy-')
+        if: inputs.target == 'sdl2' || inputs.target == 'kivy-2.3.1-sdl2'
         run: |
           changes="$(git status --porcelain -- recipes/android/sdl-glue)"
           if [[ -n "$changes" ]]; then
