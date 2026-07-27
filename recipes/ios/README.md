@@ -2,23 +2,25 @@
 
 | Script | Builds | Pinned by | Status |
 |---|---|---|---|
-| `kivy-3.0-sdl3.sh` | Kivy 3.0 pre-release, 3 slices | `PINNED_REFS.toml` | **ported, built in CI** |
-| `pyobjus.sh` | pyobjus, 3 slices | `PINNED_REFS.toml` | **ported, built in CI** |
+| `kivy-3.0-sdl3.sh` | Kivy 3.0 pre-release, 3 slices | `PINNED_REFS.toml` | **ported, published from CI** |
+| `pyobjus.sh` | pyobjus, 3 slices | `PINNED_REFS.toml` | **ported, published from CI** |
 
 Both were ported from kivyforge's `scripts/build_ios_wheels.sh` and
 `scripts/build_pyobjus_ios_wheels.sh`, which produced the wheels
-`examples/mobile/hello-kivy` runs on the simulator.
+`examples/mobile/hello-kivy` first ran on the simulator.
 
 Slices: `arm64_iphoneos`, `arm64_iphonesimulator`, `x86_64_iphonesimulator`.
 `cp315-*` only. `IPHONEOS_DEPLOYMENT_TARGET=16.0`.
 
-**Requires macOS + Xcode.** cibuildwheel's iOS target has no Linux path.
+**Requires macOS + Xcode.** cibuildwheel's iOS target has no Linux path — which
+is also why `kivyforge lock -p ios` cannot run on a Windows host, so re-locking a
+consumer after an iOS rebuild has to happen on a Mac.
 
-> **The published iOS wheels were not built by this repo's CI.** They are the
-> local builds already validated on the simulator, uploaded as-is; `build-ios.yml`
-> has since built both targets successfully, but publishing those artifacts would
-> change every `sha256` and force a re-lock and fresh device validation for no
-> gain. Rebuild them here at the next re-lock, not before.
+> **These wheels were rebuilt in CI on 2026-07-27**, replacing the local builds
+> the releases originally carried. The simulator validation recorded in
+> kivyforge's `ios-validation-findings.md` was performed against the bytes that
+> replaced — same commit, same recipe, but a different build — so repeat it on the
+> simulator to carry that result forward.
 
 ## Traps already paid for — do not rediscover these
 

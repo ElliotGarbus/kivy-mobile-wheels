@@ -120,11 +120,14 @@ gates, creates the GitHub Release, and republishes the index. Release assets are
 append-only unless `replace_assets` is set, since overwriting a published wheel
 changes its `sha256` and breaks every lock file that pins it.
 
-One deliberate exception: the **iOS wheels currently published were built
-locally**, not by `build-ios.yml` — they are the exact binaries already
-validated on the simulator. CI builds them successfully, but publishing those
-artifacts would change their hashes and force a re-lock, so that waits for the
-next re-lock. See [`recipes/ios/README.md`](recipes/ios/README.md).
+Every published wheel, on both platforms, was built by these workflows. The iOS
+wheels were originally local builds; they were rebuilt and republished in CI on
+2026-07-27 so the whole index has one provenance story.
+
+That rebuild changed every iOS `sha256`, which is what a rebuild always does here
+— see the note on bit-reproducibility above. `hello-kivy`'s `pylock.ios.toml` was
+re-pointed at the new hashes; the simulator validation those wheels carried was
+done against the bytes they replaced, so it needs repeating to carry forward.
 
 ## License
 
