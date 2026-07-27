@@ -107,6 +107,17 @@ def main() -> int:
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(aar.read(entry))
 
+    # The compiled jar, where SDL3Config.cmake insists on finding it:
+    #   share/java/<Name>/<Name>-<version>.jar
+    # It set_and_check()s this path (along with the .so and the static test
+    # archive), so find_package fails without it even for a build that never
+    # touches Java.
+    if "classes.jar" in aar.namelist():
+        jar_dest = prefix / "share" / "java" / name / f"{name}-{version}.jar"
+        jar_dest.parent.mkdir(parents=True, exist_ok=True)
+        jar_dest.write_bytes(aar.read("classes.jar"))
+        print(f"    {jar_dest.name} -> share/java/{name}/")
+
     # Java glue, where the .aar ships it. Same matched-pair rule as SDL2: the
     # glue that goes into an app must come from the release that built the .so.
     sources = [n for n in aar.namelist() if n.endswith("classes-sources.jar")]
