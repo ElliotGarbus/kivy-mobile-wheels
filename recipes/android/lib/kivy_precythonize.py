@@ -58,8 +58,14 @@ def write_config_pxi(src: Path) -> Path:
     # build_extensions(), then compiles. No-op the per-extension compile so the
     # configs land and the command returns without touching a compiler.
     build_ext_mod.build_ext.build_extension = lambda self, ext: None
+    # ...and the copy-back, which would otherwise look for the .so files the
+    # no-oped compile never produced.
+    build_ext_mod.build_ext.copy_extensions_to_source = lambda self: None
 
-    sys.argv = ["setup.py", "build_ext", "--inplace"]
+    # No --inplace: Kivy writes the configs to the source tree as well as the
+    # build tree, so there is nothing to copy back and asking for it only
+    # re-introduces the copy step above.
+    sys.argv = ["setup.py", "build_ext"]
     sys.path.insert(0, str(src))
     os.chdir(src)
     runpy_globals = {"__file__": str(src / "setup.py"), "__name__": "__main__"}
