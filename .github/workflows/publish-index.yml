@@ -1,13 +1,20 @@
-# Regenerate the PEP 503 index from published release assets and deploy it to
-# Pages.
+# Regenerate the PEP 503 index from published release assets, deploy it to
+# Pages, and prove a consumer can actually resolve what was deployed.
 #
-# Triggered by release publication rather than push: the index describes what
-# has been released, so releases are the only thing that can change it.
+# NOT triggered by `release: [published]`, though that is the obvious choice and
+# was how this started. The `github-pages` environment restricts deployments to
+# branch `main`, and a release event runs on the tag ref — so `build-index`
+# would pass and `deploy` was rejected before its first step, silently, on every
+# release. The index only ever updated because someone noticed and dispatched it
+# by hand.
+#
+# Instead the build workflows call this at the end of a successful publish. They
+# run on `main`, so the environment permits the deployment, and index publication
+# stops being a step a human has to remember.
 name: publish-index
 
 on:
-  release:
-    types: [published]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
@@ -67,6 +74,26 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # Deploying proves the HTML exists, not that pip can use it. A wrong platform
+  # tag, a hash that no longer matches its asset, or a name that normalizes
+  # differently all produce an index that looks fine and fails at `kivyforge
+  # lock` — for the consumer, not here. So resolve every wheel the index
+  # advertises, the same way a consumer would.
+  verify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Resolve every published wheel with pip
+        run: |
+          python index-gen/verify_index.py \
+            --base-url "${{ needs.deploy.outputs.page_url }}"

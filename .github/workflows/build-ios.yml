@@ -3,6 +3,9 @@
 # macOS runners are free on public repos. Manual dispatch only: builds are slow
 # (Kivy's native deps — SDL3, ANGLE, ThorVG — take a while) and inputs change
 # rarely.
+#
+# With `publish` set, the run also creates the GitHub Release and republishes the
+# index, so a wheel never has to be downloaded and re-uploaded by hand.
 name: build-ios
 
 on:
@@ -13,6 +16,24 @@ on:
         required: true
         type: choice
         options: [kivy-3.0-sdl3, pyobjus]
+      publish:
+        description: Publish a release from the built wheels and update the index
+        required: false
+        default: false
+        type: boolean
+      replace_assets:
+        description: >-
+          Overwrite assets already attached to the release. Changes their
+          sha256, so every existing lock file that pins them breaks.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  IOS_DEPLOYMENT_TARGET: "16.0"
 
 jobs:
   build:
@@ -47,13 +68,19 @@ jobs:
           curl -fsSL -o /tmp/python-3.15.0b2-macos11.pkg "$URL"
           sudo installer -pkg /tmp/python-3.15.0b2-macos11.pkg -target /
 
-      # Deployment target MUST be injected via CIBW_ENVIRONMENT_IOS inside the
-      # recipe scripts, not just exported here — iOS builds run in an isolated
-      # cross-venv and cibuildwheel otherwise tags wheels ios_13_0_* instead of
-      # ios_16_0_*. Both recipes already do this; nothing to add at the
-      # workflow level.
       - name: Run recipe
         run: bash recipes/ios/${{ inputs.target }}.sh dist/ios
+
+      # The deployment target is the one iOS property that is both easy to lose
+      # and invisible in the wheel's name: the ios_*_* tag comes from the
+      # interpreter's own build (13.0 for python.org's framework), not from
+      # IPHONEOS_DEPLOYMENT_TARGET, so a correctly-built 16.0 wheel is still
+      # tagged ios_13_0. The Mach-O load commands are the only honest record,
+      # and Kivy's SDL3/ANGLE/ThorVG xcframeworks require 16.0.
+      - name: Minimum iOS version is what the recipe asked for
+        run: |
+          python3 recipes/ios/lib/check_min_os.py \
+            "$IOS_DEPLOYMENT_TARGET" dist/ios/*.whl
 
       - name: Checksums
         run: |
@@ -65,3 +92,95 @@ jobs:
           name: ${{ inputs.target }}-ios-wheels
           path: dist/ios/*
           if-no-files-found: error
+
+  release:
+    needs: build
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: ${{ inputs.target }}-ios-wheels
+          path: dist
+
+      # Tag and title come from the wheels themselves, so a version bump needs no
+      # workflow edit and the tag cannot disagree with what is inside it.
+      - name: Derive release identity
+        id: identity
+        run: |
+          cd dist
+          wheel="$(ls -1 *.whl | head -1)"
+          project="$(echo "$wheel" | cut -d- -f1 | tr '[:upper:]' '[:lower:]')"
+          version="$(echo "$wheel" | cut -d- -f2)"
+          case "${{ inputs.target }}" in
+            kivy-3.0-sdl3) title="Kivy $version — iOS" ;;
+            pyobjus)       title="pyobjus $version — iOS" ;;
+            *)             title="$project $version — iOS" ;;
+          esac
+          prerelease=""
+          if [[ "$version" =~ (a|b|rc|dev) ]]; then
+            prerelease="--prerelease"
+          fi
+          {
+            echo "tag=$project-ios-$version"
+            echo "title=$title"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+          echo "tag=$project-ios-$version title=$title $prerelease"
+
+      # Append-only by default; see build-android.yml for why replacing a
+      # published wheel is a separate, deliberate decision.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.identity.outputs.tag }}
+        run: |
+          notes="$(printf 'Built by [%s](%s/%s/actions/runs/%s) from `%s`.\n\nPinned inputs:\n\n```toml\n%s\n```\n' \
+            "${{ github.workflow }}" "${{ github.server_url }}" "${{ github.repository }}" \
+            "${{ github.run_id }}" "${{ github.sha }}" "$(cat recipes/PINNED_REFS.toml)")"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists."
+            existing="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+            if [[ "${{ inputs.replace_assets }}" != "true" ]]; then
+              for wheel in dist/*.whl; do
+                if grep -qxF "$(basename "$wheel")" <<<"$existing"; then
+                  echo "::error::$(basename "$wheel") is already published. Re-uploading"
+                  echo "::error::would change its sha256 and break existing lock files."
+                  echo "::error::Re-run with replace_assets if that is intended."
+                  exit 1
+                fi
+              done
+            fi
+            # See build-android.yml: SHA256SUMS must cover every asset on the
+            # release, because it is the index generator's fallback when the API
+            # reports no digest.
+            if grep -qxF SHA256SUMS <<<"$existing"; then
+              gh release download "$TAG" --pattern SHA256SUMS --dir prev --clobber
+              awk 'NR==FNR { seen[$2] = 1; print; next } !($2 in seen)' \
+                dist/SHA256SUMS prev/SHA256SUMS > merged
+              mv merged dist/SHA256SUMS
+              echo "Merged with the published SHA256SUMS:"
+              cat dist/SHA256SUMS
+            fi
+          else
+            gh release create "$TAG" \
+              --title "${{ steps.identity.outputs.title }}" \
+              --notes "$notes" \
+              ${{ steps.identity.outputs.prerelease }}
+          fi
+
+          gh release upload "$TAG" dist/*.whl dist/SHA256SUMS --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name'
+
+  index:
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/publish-index.yml

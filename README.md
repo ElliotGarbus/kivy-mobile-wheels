@@ -65,7 +65,13 @@ Every input is pinned, and nothing resolves a branch at build time:
   commit from there and have no branch-name fallback; a missing pin fails the
   build rather than quietly floating.
 
-Each release records the pins it was built from.
+Each release records the pins it was built from, and the run that produced it.
+
+Every wheel passes a set of gates before publication, and each one is there
+because the failure it catches is otherwise silent — the wheel builds, installs,
+and breaks later. 16 KB page alignment and dependency closure on Android,
+minimum linked iOS version on iOS, and on both a real `pip` resolve against the
+deployed index. The per-platform READMEs list them.
 
 Wheel builds are **not** bit-reproducible — rebuilding the same inputs yields a
 different `sha256`. Consumers must re-lock against a new release rather than
@@ -76,31 +82,49 @@ assume hashes carry over.
 ```
 recipes/
   PINNED_REFS.toml     exact upstream commits (see above)
-  android/             SDL2 + Kivy + pyjnius build scripts
-    sdl-glue/          org/libsdl/app/*.java extracted from the SDL tarball
+  lib/pins.sh          reads PINNED_REFS.toml; no branch-name fallback
+  android/             SDL2/SDL3 + Kivy + pyjnius build scripts
+    SDL3-FINDINGS.md   what the SDL3 investigation changed about the recipe
+    lib/               aar unwrapping, pre-cythonize, graft + wheel gates
+    sdl-glue/          org/libsdl/app/*.java extracted from the SDL2 tarball
+    sdl-glue-sdl3/     the same, extracted from the SDL3 .aar
   ios/                 Kivy + pyobjus build scripts
-.github/workflows/     build matrices + index publication
-index-gen/             PEP 503 static index generator
+    lib/               minimum-iOS-version gate
+.github/workflows/     build matrices, release publication, index publication
+index-gen/             PEP 503 static index generator + its resolve gate
 ```
 
-### `recipes/android/sdl-glue/`
+### `recipes/android/sdl-glue/` and `sdl-glue-sdl3/`
 
 Android needs SDL's Java glue (`org/libsdl/app/*.java`) on the app side, and it
-**must** come from the same SDL release as the `libSDL2.so` in the wheel.
-`SDLActivity` compares its compiled-in version against `nativeGetVersion()` and,
-on mismatch, aborts `onCreate` *before creating the surface* — logging nothing.
-The app shows a black screen, `SDL_main` is never called, and no Python runs.
+**must** come from the same SDL release as the `libSDL2.so` / `libSDL3.so` in the
+wheel. `SDLActivity` compares its compiled-in version against
+`nativeGetVersion()` and, on mismatch, aborts `onCreate` *before creating the
+surface* — logging nothing. The app shows a black screen, `SDL_main` is never
+called, and no Python runs. Both SDL generations enforce this.
 
-So the glue is extracted from the same verified tarball that builds the
-library, committed alongside it, and checked in CI. It is not published as a
+So the glue is extracted from the same verified artifact that builds the
+library — the tarball for SDL2, the `.aar` for SDL3 — committed alongside it,
+and checked in CI. It is not published as a
 release asset: nobody `pip install`s a `.java` file, and a second copy on the
 distribution path is one more thing that can drift.
 
 ## Status
 
-Scaffolding. No wheels published yet — see
-`.cursor/plans/mobile-wheels-repo.plan.md` in the kivyforge repo for the phase
-plan.
+Every target in the scope table above is published and resolvable from the index.
+
+Builds are dispatched by hand from the Actions tab — `build-android` /
+`build-ios`, with `publish` set — because their inputs change rarely and there is
+nothing useful to trigger on. From there the run is self-contained: it builds,
+gates, creates the GitHub Release, and republishes the index. Release assets are
+append-only unless `replace_assets` is set, since overwriting a published wheel
+changes its `sha256` and breaks every lock file that pins it.
+
+One deliberate exception: the **iOS wheels currently published were built
+locally**, not by `build-ios.yml` — they are the exact binaries already
+validated on the simulator. CI builds them successfully, but publishing those
+artifacts would change their hashes and force a re-lock, so that waits for the
+next re-lock. See [`recipes/ios/README.md`](recipes/ios/README.md).
 
 ## License
 
