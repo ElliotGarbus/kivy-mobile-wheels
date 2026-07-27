@@ -14,20 +14,26 @@
 # a wheel that builds, passes every other check, and fails to load on any
 # Android 15/16 device with 16 KB pages. See SDL3-FINDINGS.md.
 #
-# THIS WORKAROUND IS EXPECTED TO EXPIRE. The fault is in how that .aar was
-# linked, not in SDL3_ttf: building the same 3.2.2 source with
-# -Wl,-z,max-page-size=16384 yields a correctly aligned library, which is what
-# happens below.
+# THIS WORKAROUND IS EXPECTED TO EXPIRE — upstream already fixed it.
 #
-# The version skew is not a coordinated release ttf was left out of — SDL's
-# satellites each release on their own train (image is on 3.4.x, mixer on
-# 3.2.x, and both still cut SDL2-line releases alongside). SDL_ttf has simply
-# published nothing since 3.2.2 in March 2025, though its main branch is at
-# 3.3.0 and active. SDL versions odd minors as development and even as stable
-# — image went prerelease-3.3.2/3.3.4 then release-3.4.0 — so ttf's 3.3.x line
-# is what becomes 3.4.0.
+# It is a known bug, libsdl-org/SDL_ttf#621, filed and closed on 2026-04-09.
+# A maintainer confirmed "the 3.2.2 release binaries (Mar 31, 2025) do not have
+# this" and landed the fix on BOTH lines the same day:
 #
-# When that lands, re-measure its .aar before doing anything else:
+#   3.4.0   cb303d4eb7838122b04b2d6f41c45faff0598374   (2025-11-06)
+#   3.2.x   d030c50a0a8cc5792ab8d18d86d48b21b4e5c170   (2025-11-06)
+#
+# So the fault is in how that one .aar was linked, not in SDL3_ttf — building
+# the same source with -Wl,-z,max-page-size=16384 gives a correctly aligned
+# library, which is what happens below. Upstream's own suggested interim is
+# `build-scripts/build-release.py --actions android`; this recipe does the
+# equivalent with cmake directly, to fit the prefix layout the rest of the
+# family already uses.
+#
+# The trigger to remove this is therefore ANY SDL_ttf release newer than
+# 3.2.2 — the fix is on the 3.2 maintenance branch as well as the development
+# one, so a 3.2.4 would carry it just as a 3.4.0 would. When one appears,
+# re-measure before anything else:
 #
 #   python3 recipes/android/lib/unwrap_sdl3_aar.py <zip> <sha256> /tmp/probe x86_64
 #

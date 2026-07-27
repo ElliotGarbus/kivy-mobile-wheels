@@ -77,6 +77,30 @@ Worth stating plainly because the plan assumed the opposite: *"SDL3 publishes
 an official prebuilt … which should be cheaper"*. It is cheaper — three of
 four — but not free, and the exception is invisible unless measured.
 
+### Upstream already fixed this — the workaround has an expiry date
+
+This is a known bug: **[libsdl-org/SDL_ttf#621](https://github.com/libsdl-org/SDL_ttf/issues/621)**,
+*"Error about 16kb page size on Android using SDL3_ttf prebuilt .AAR"*, filed
+and closed on 2026-04-09. A maintainer confirmed the reading above —
+*"The 3.2.2 release binaries (Mar 31, 2025) do not have this"* — and the fix
+is already committed on **both** lines:
+
+| line | commit | dated |
+|---|---|---|
+| 3.4.0 | `cb303d4eb7838122b04b2d6f41c45faff0598374` | 2025-11-06 |
+| 3.2.x | `d030c50a0a8cc5792ab8d18d86d48b21b4e5c170` | 2025-11-06 |
+
+Two consequences:
+
+- **The trigger to delete this workaround is any release newer than 3.2.2**,
+  not specifically 3.4.0. The fix sits on the 3.2 maintenance branch too, so a
+  3.2.4 would carry it. (It has been on both branches for eight months without
+  a release, which is why the workaround was still needed.)
+- Upstream's own suggested interim is
+  `build-scripts/build-release.py --actions android`. This recipe does the
+  equivalent via cmake directly, to fit the prefix layout the rest of the
+  family already uses.
+
 ### Why ttf is on 3.2.x while SDL3 and SDL3_image are on 3.4.x
 
 3.2.2 (2025-03-31) is the newest SDL3_ttf release — confirmed against all
@@ -100,9 +124,16 @@ line is what becomes 3.4.0.
 
 The defect is in how the published `.aar` was linked, not in SDL3_ttf itself:
 the same 3.2.2 source built with `-Wl,-z,max-page-size=16384` produces a
-correctly aligned library, verified in CI on both ABIs. So when 3.4.0 lands,
-re-measure its `.aar` first — if it is 16 KB-aligned, the from-source step
-should be deleted rather than carried forward.
+correctly aligned library, verified in CI on both ABIs — which is exactly what
+upstream's fix does. So when any newer release appears, re-measure its `.aar`
+first:
+
+```bash
+python3 recipes/android/lib/unwrap_sdl3_aar.py <zip> <sha256> /tmp/probe x86_64
+```
+
+If it reports `0x4000`, delete the from-source step in `sdl3.sh` rather than
+carrying it forward.
 
 ## 4. The `.aar` carries the Java glue as source
 
