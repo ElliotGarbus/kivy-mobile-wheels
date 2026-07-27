@@ -72,6 +72,32 @@ def main() -> int:
             print(f"graft: no libSDL2*.so in {libdir}", file=sys.stderr)
             return 1
 
+    # Nothing to graft: verify in place and copy the wheel through untouched.
+    # Repacking would change its sha256 for no benefit, and the point is to
+    # ship exactly what cibuildwheel produced.
+    if not libs:
+        bad = []
+        count = 0
+        with zipfile.ZipFile(wheel) as zf:
+            for name in zf.namelist():
+                if not name.endswith(".so"):
+                    continue
+                count += 1
+                aligns = p_align_values(zf.read(name))
+                if aligns and any(a != WANT_ALIGN for a in aligns):
+                    bad.append((name, [hex(a) for a in aligns]))
+        if bad:
+            for name, aligns in bad:
+                print(f"  FAIL {name}: p_align={aligns} (want 0x4000)", file=sys.stderr)
+            print("graft: 16 KB alignment check failed.", file=sys.stderr)
+            return 1
+        print(f"  nothing to graft; {count} .so all at p_align=0x4000")
+        out = outdir / wheel.name
+        shutil.copy2(wheel, out)
+        print(f"  {out.name}")
+        print(f"  sha256 {hashlib.sha256(out.read_bytes()).hexdigest()}")
+        return 0
+
     work = outdir / f".work-{wheel.stem}"
     if work.exists():
         shutil.rmtree(work)
@@ -79,14 +105,11 @@ def main() -> int:
     with zipfile.ZipFile(wheel) as zf:
         zf.extractall(work)
 
-    if libs:
-        dest = work / ".libs"
-        dest.mkdir(exist_ok=True)
-        for lib in libs:
-            shutil.copy2(lib, dest / lib.name)
-            print(f"  grafted {lib.name}")
-    else:
-        print("  nothing to graft")
+    dest = work / ".libs"
+    dest.mkdir(exist_ok=True)
+    for lib in libs:
+        shutil.copy2(lib, dest / lib.name)
+        print(f"  grafted {lib.name}")
 
     # Verify alignment across everything the wheel will ship.
     bad = []

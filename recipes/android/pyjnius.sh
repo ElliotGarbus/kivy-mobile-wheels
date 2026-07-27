@@ -48,16 +48,32 @@ clone_pinned android.pyjnius "$SRC"
   exit 1
 }
 
-export CIBW_PLATFORM=android
-export CIBW_BUILD_FRONTEND=build
-export CIBW_BUILD="cp314-android_${CIBW_ABI}"
-export CIBW_ENVIRONMENT_ANDROID="ANDROID_API_LEVEL=24"
+# pyjnius's setup.py uses Cython.Distutils.build_ext on .pyx sources, and
+# declares Cython in [build-system].requires — but cibuildwheel invokes the
+# build frontend with --no-isolation --skip-dependency-check, so build requires
+# are never installed and the compile fails on a missing jnius/jnius.c.
+#
+# config.pxi is how jnius.pyx selects its platform at *cythonize* time, so it
+# has to be written before Cython runs, not left to the compile. This mirrors
+# the fork's own .github/workflows/android-wheels.yml, which is what produced
+# the validated wheel.
+echo "==> pre-generating jnius.c"
+python3 -m pip install -q "Cython~=3.1.2"
+printf "DEF JNIUS_PLATFORM = 'android'\n" > "$SRC/jnius/config.pxi"
+(cd "$SRC" && cython -3 jnius/jnius.pyx -o jnius/jnius.c)
 
-# pyjnius bundles no third-party shared libraries, so there is nothing for
-# auditwheel to graft — but leaving repair enabled would still let it rename
-# and rewrite the extension. Disabled for the same reason as the Kivy recipe:
-# Android resolves libraries by exact filename.
-export CIBW_REPAIR_WHEEL_COMMAND_ANDROID=""
+export CIBW_PLATFORM=android
+export CIBW_BUILD="cp314-android_${CIBW_ABI}"
+export CIBW_ENABLE=cpython-prerelease
+
+# Deliberately NOT setting CIBW_ENVIRONMENT_ANDROID or the build frontend:
+# pyjnius's own pyproject.toml already supplies
+#   build-frontend = "build"
+#   environment = { ANDROID_API_LEVEL = "24",
+#                   LDFLAGS = "-Wl,-z,max-page-size=16384" }
+# and CIBW_ENVIRONMENT_ANDROID *replaces* rather than augments it — an earlier
+# version of this recipe set it and silently dropped the 16 KB alignment flag.
+# Let the upstream config apply; it is the configuration that was validated.
 
 echo "==> cibuildwheel ($CIBW_BUILD)"
 python3 -m pip install -q cibuildwheel
