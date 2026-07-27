@@ -62,6 +62,11 @@ clone_pinned android.kivy "$KIVY_SRC"
 # its cythonized output, silently linking the wrong libraries.
 git -C "$KIVY_SRC" clean -xfd >/dev/null
 
+# Upstream's version is the literal 3.0.0.dev0 on every commit, which would make
+# every build of every commit the same wheel filename. See stamp_kivy_version.py.
+echo "==> stamping the version from the pinned commit"
+python3 "$HERE/../lib/stamp_kivy_version.py" "$KIVY_SRC"
+
 # --- assemble the tree Kivy's setup.py expects -------------------------------
 echo "==> staging SDL3 into <kivy-src>/dist"
 rm -rf "$KIVY_SRC/dist"

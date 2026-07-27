@@ -34,19 +34,17 @@ repo = "https://github.com/kivy/kivy"
 ref = "master"
 commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
 note = """
-This is the commit that actually built the vendored iOS Kivy wheels currently
-running on the simulator — recovered from the cached checkout under
-.build/ios-wheels/kivy on the build Mac, not inferred (kivyforge
-docs/design/dev/mobile-wheels-phase0-inventory.md). Dated 2026-06-22.
+Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-06-22 —
+the commit that first validated these wheels on the simulator.
 
-Deliberately NOT master HEAD. Pinning HEAD would rebuild wheels nobody has run
-and invalidate the sha256s already committed in
-examples/mobile/hello-kivy/pylock.ios.toml, forcing a re-lock and a fresh
-round of device validation for no gain. Bump this when there is a reason to,
-and re-validate when you do.
+Deliberately NOT floating on master. Each bump is a reviewed change to this
+file (watch-upstream.yml opens the PR; a human merges it). Recipes stamp the
+version to 3.0.0.dev<YYYYMMDDHHMM> from the commit date, so a new build gets
+its own release and old lock files keep resolving to the bytes they pinned.
+Re-validate on a device or the simulator after merging a bump that matters.
 
-Kivy 3.0 pre-release. Switch to a versioned sdist and delete this entry once
-3.0 is tagged — a release tarball + SHA-256 is a stronger pin than a commit.
+Switch to a versioned sdist and delete this entry once 3.0 is tagged — a
+release tarball + SHA-256 is a stronger pin than a commit.
 """
 
 [ios.pyobjus]
@@ -73,7 +71,9 @@ ref = "master"
 commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
-[ios.kivy] deliberately — same tree, validated on iOS.
+[ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
+rewrites both commit lines together; do not split them without also changing
+how stamp_kivy_version.py predicts the release tag.
 
 Its setup.py resolves Android SDL3 from <cwd>/dist/libs/<abi> and
 <cwd>/dist/include, using os.getcwd() rather than KIVY_DEPS_ROOT, so the

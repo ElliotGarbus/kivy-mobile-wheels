@@ -1,0 +1,82 @@
+# Keep the accumulation of Kivy dev releases bounded.
+#
+# Stamped dev versions mean a new build never overwrites an old one, which is the
+# point — but it also means releases pile up for as long as Kivy 3.0 stays
+# unreleased. This drops the ones that a newer build of the same line has
+# superseded.
+#
+# It deletes published wheels, so read tools/prune_dev_releases.py's header before
+# changing anything here: releases outside a dev line are never candidates, and a
+# lock file pinned to a deleted dev wheel will stop resolving.
+name: prune-dev-releases
+
+on:
+  # Monthly. Dispatch it by hand first if you want to see what it would do.
+  schedule:
+    - cron: "41 7 1 * *"
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: Dev releases to keep per project, platform and release line
+        required: false
+        default: 5
+        type: number
+      apply:
+        description: Actually delete. Off by default, so a dispatch reports only.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    outputs:
+      deleted: ${{ steps.prune.outputs.deleted }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Prune
+        id: prune
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # A scheduled run that only reported would be a monthly email nobody
+          # reads, so the schedule deletes; a manual run defaults to a preview.
+          APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
+          KEEP: ${{ inputs.keep || 5 }}
+        run: |
+          flags=()
+          if [[ "$APPLY" == "true" ]]; then
+            flags+=(--apply)
+          fi
+          python tools/prune_dev_releases.py --keep "$KEEP" "${flags[@]}" \
+            | tee "$RUNNER_TEMP/prune.log"
+          {
+            echo '```'
+            cat "$RUNNER_TEMP/prune.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # republish the index only when something was actually removed —
+          # otherwise every dry-run dispatch would redeploy Pages for nothing.
+          if [[ "$APPLY" == "true" ]] && grep -qE '^[0-9]+ release\(s\) deleted\.$' "$RUNNER_TEMP/prune.log"; then
+            echo "deleted=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deleted=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Dead release assets leave live anchors in the index until the next publish.
+  # Rebuild it whenever a prune actually deleted something.
+  index:
+    needs: prune
+    if: needs.prune.outputs.deleted == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/publish-index.yml

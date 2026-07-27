@@ -2,7 +2,7 @@
 
 | Script | Builds | Pinned by | Status |
 |---|---|---|---|
-| `kivy-3.0-sdl3.sh` | Kivy 3.0 pre-release, 3 slices | `PINNED_REFS.toml` | **ported, published from CI** |
+| `kivy-3.0-sdl3.sh` | Kivy 3.0 pre-release, 3 slices | `PINNED_REFS.toml` (stamped `3.0.0.devYYYYMMDDHHMM`) | **ported, published from CI** |
 | `pyobjus.sh` | pyobjus, 3 slices | `PINNED_REFS.toml` | **ported, published from CI** |
 
 Both were ported from kivyforge's `scripts/build_ios_wheels.sh` and
@@ -68,6 +68,12 @@ Every wheel, before it is published:
    `publish-index.yml` after each deployment.
 
 ## Kivy specifics
+
+Upstream's version is the literal `3.0.0.dev0` on every commit. The recipe runs
+[`../lib/stamp_kivy_version.py`](../lib/stamp_kivy_version.py) before the build
+so each commit publishes as `3.0.0.devYYYYMMDDHHMM` and can coexist with earlier
+builds. `watch-upstream` / `refresh-kivy3` at the repo root are how a new pin
+becomes a new pair of releases.
 
 Kivy's own `tools/build_ios_dependencies.sh` builds the SDL3 + ANGLE + ThorVG
 xcframeworks; `tools/add-ios-frameworks.py` then grafts them into the wheel.

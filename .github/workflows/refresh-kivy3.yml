@@ -1,0 +1,140 @@
+# Rebuild and republish Kivy 3.0 for every platform, from one trigger.
+#
+# Refreshing Kivy used to be five dispatches (two Android ABIs live in one, plus
+# iOS) and an index publish per platform. This is one: it builds Android and iOS
+# from the pinned commit, publishes a release for each, and republishes the index
+# once at the end.
+#
+# Scoped to the Kivy 3.0 / SDL3 targets on purpose. Kivy 2.3.1 builds from a
+# versioned sdist and pyjnius/pyobjus from pins that carry "re-check before
+# bumping" notes, so none of them wants a routine automatic rebuild.
+#
+# Runs on a push to main that touches PINNED_REFS.toml — that is the merge of a
+# pin bump, whether a human wrote it or watch-upstream.yml opened the PR.
+name: refresh-kivy3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - recipes/PINNED_REFS.toml
+  workflow_dispatch:
+    inputs:
+      force:
+        description: >-
+          Build even if the version the pinned commit produces is already
+          published. Needs replace_assets to actually upload.
+        required: false
+        default: false
+        type: boolean
+      replace_assets:
+        description: >-
+          Overwrite assets already attached to the release. Changes their
+          sha256, so every existing lock file that pins them breaks.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  # Not every push that touches PINNED_REFS.toml changes the Kivy commit — it
+  # might bump pyjnius or just fix a note. Rebuilding then would produce the same
+  # version as the release already published, the append-only guard would refuse
+  # the upload, and the run would go red for "nothing to do". A red X that means
+  # success teaches people to ignore red X's, so the version is resolved up front
+  # and each platform is built only if its release is missing.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      build_android: ${{ steps.plan.outputs.build_android }}
+      build_ios: ${{ steps.plan.outputs.build_ios }}
+      replace_assets: ${{ steps.plan.outputs.replace_assets }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Resolve what the pinned commit would publish
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # `inputs` is null on a push, and feeding that to a boolean input of a
+          # called workflow is an error, so both flags are normalised here into
+          # strings and converted once at the call site.
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force || false }}
+          REPLACE: ${{ github.event_name == 'workflow_dispatch' && inputs.replace_assets || false }}
+        run: |
+          version="$(python3 recipes/lib/stamp_kivy_version.py --predict)"
+          {
+            echo "version=$version"
+            echo "replace_assets=$REPLACE"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "### Kivy \`$version\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          for platform in android ios; do
+            tag="kivy-$platform-$version"
+            if [[ "$FORCE" == "true" ]]; then
+              build=true
+              why="forced"
+            elif gh release view "$tag" >/dev/null 2>&1; then
+              build=false
+              why="\`$tag\` is already published"
+            else
+              build=true
+              why="\`$tag\` does not exist yet"
+            fi
+            echo "build_$platform=$build" >> "$GITHUB_OUTPUT"
+            echo "- **$platform** — build: \`$build\` ($why)" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+  android:
+    needs: plan
+    if: needs.plan.outputs.build_android == 'true'
+    # A called workflow can only ever hold a subset of the caller job's
+    # permissions, so these have to cover what its release job needs.
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/build-android.yml
+    with:
+      target: kivy-3.0-sdl3
+      publish: true
+      replace_assets: ${{ needs.plan.outputs.replace_assets == 'true' }}
+      # One index publish for both platforms, from the job below.
+      update_index: false
+
+  ios:
+    needs: plan
+    if: needs.plan.outputs.build_ios == 'true'
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/build-ios.yml
+    with:
+      target: kivy-3.0-sdl3
+      publish: true
+      replace_assets: ${{ needs.plan.outputs.replace_assets == 'true' }}
+      update_index: false
+
+  # `always()` so one platform failing still publishes the other's release into
+  # the index; a wheel on a release but missing from the index is invisible to
+  # consumers, which is worse than a partial refresh.
+  index:
+    needs: [plan, android, ios]
+    if: >-
+      always() &&
+      (needs.android.result == 'success' || needs.ios.result == 'success')
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/publish-index.yml

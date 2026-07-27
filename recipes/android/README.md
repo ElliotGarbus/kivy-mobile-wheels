@@ -5,7 +5,7 @@
 | `sdl2.sh` | SDL2 2.32.10 + image/mixer/ttf, per ABI | source tarball SHA-256 | **ported** |
 | `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 | **ported, published** |
 | `sdl3.sh` | SDL3 family, per ABI | release SHA-256 (ttf from source) | **ported** |
-| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (unreleased) | **ported, published** |
+| `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (stamped `3.0.0.devYYYYMMDDHHMM`) | **ported, published** |
 | `pyjnius.sh` | pyjnius 1.7.0 | `PINNED_REFS.toml` | **ported, published** |
 
 ## Where the procedure came from
@@ -67,6 +67,12 @@ afterwards as a flat `.libs/` with sonames unchanged.
 **Kivy sets `can_use_cython = False` on Android**, so the sdist's 45 `.pyx`
 must be pre-cythonized before the build. `KIVY_FAKE_BUILDEXT` does not help —
 it returns an empty ext list, so `config.pxi` never gets written.
+
+**Kivy 3.0's upstream version is the literal `3.0.0.dev0` on every commit.**
+`kivy-3.0-sdl3.sh` runs [`../lib/stamp_kivy_version.py`](../lib/stamp_kivy_version.py)
+before the build so each commit publishes as `3.0.0.devYYYYMMDDHHMM` and can
+coexist with earlier builds. See the top-level README for `watch-upstream` /
+`refresh-kivy3`.
 
 **SDL3 needs `libc++_shared.so` in the wheel and SDL2 did not.** Kivy's
 `_img_sdl3` carries a `DT_NEEDED` on the NDK's shared C++ runtime; nothing in

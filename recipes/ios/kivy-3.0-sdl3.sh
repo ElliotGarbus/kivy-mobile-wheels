@@ -72,6 +72,11 @@ fi
 clone_pinned ios.kivy "$KIVY_SRC"
 echo "Kivy checkout at: $(git -C "$KIVY_SRC" log -1 --oneline)"
 
+# Upstream's version is the literal 3.0.0.dev0 on every commit, which would make
+# every build of every commit the same wheel filename. See stamp_kivy_version.py.
+echo "Stamping the version from the pinned commit ..."
+python3 "$ROOT/recipes/lib/stamp_kivy_version.py" "$KIVY_SRC"
+
 echo "Installing cibuildwheel build deps ..."
 python3 -m pip install -q -r "$KIVY_SRC/.ci/cicd-requirements.txt"
 # Kivy's pin (~=3.4) predates cp315 iOS; 4.0rc+ is required for Python 3.15 wheels.

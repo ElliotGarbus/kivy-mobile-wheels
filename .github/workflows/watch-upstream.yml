@@ -1,0 +1,78 @@
+# Poll kivy/kivy master and open a pull request when it moves past the pin.
+#
+# Polling, not a webhook: subscribing to another repository's pushes needs admin
+# on that repository. Nothing here is sent upstream — the pull request is against
+# this repo and only edits recipes/PINNED_REFS.toml. See tools/watch_upstream.py
+# for why a bot prepares the bump instead of applying it.
+#
+# Merging the pull request is what starts a build: the push to main triggers
+# refresh-kivy3.yml through its PINNED_REFS.toml path filter. That works because
+# a human does the merge. Enabling auto-merge with the default token would not
+# trigger it, since events raised by GITHUB_TOKEN deliberately do not start new
+# workflow runs.
+name: watch-upstream
+
+on:
+  # Weekly. Upstream lands roughly 17 commits a month in bursts, so polling more
+  # often would mostly rewrite the same pull request with a newer sha.
+  schedule:
+    - cron: "23 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Compare the pin against kivy/kivy master
+        id: drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python tools/watch_upstream.py \
+            --write --body-file "$RUNNER_TEMP/pr-body.md"
+
+      - name: Already current
+        if: steps.drift.outputs.drifted != 'true'
+        run: echo "The Kivy pin matches master; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+
+      # One fixed branch, force-pushed. A weekly poll that opened a new pull
+      # request per upstream commit would bury the one that matters; instead there
+      # is at most one open bump request, always describing current master. The
+      # force-push is safe because nothing but this job writes to this branch.
+      - name: Open or refresh the bump request
+        if: steps.drift.outputs.drifted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: bot/bump-kivy-pin
+          TITLE: ${{ steps.drift.outputs.title }}
+          SHORT: ${{ steps.drift.outputs.short }}
+          VERSION: ${{ steps.drift.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add recipes/PINNED_REFS.toml
+          git commit -m "Bump the Kivy 3.0 pin to $SHORT" \
+            -m "Builds as $VERSION. Opened by watch-upstream.yml."
+          git push --force origin "$BRANCH"
+
+          existing="$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            gh pr edit "$existing" --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
+            url="$(gh pr view "$existing" --json url --jq .url)"
+            echo "Refreshed [#$existing]($url) — $TITLE" >> "$GITHUB_STEP_SUMMARY"
+          else
+            url="$(gh pr create --base main --head "$BRANCH" \
+              --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md")"
+            echo "Opened $url — $TITLE" >> "$GITHUB_STEP_SUMMARY"
+          fi

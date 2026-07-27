@@ -63,7 +63,10 @@ Every input is pinned, and nothing resolves a branch at build time:
 - **Git checkouts** (pyjnius, Kivy 3.0 pre-release, pyobjus) — exact commits in
   [`recipes/PINNED_REFS.toml`](recipes/PINNED_REFS.toml). Recipes read the
   commit from there and have no branch-name fallback; a missing pin fails the
-  build rather than quietly floating.
+  build rather than quietly floating. Kivy 3.0's upstream version is the
+  literal `3.0.0.dev0` on every commit, so the recipes stamp it to
+  `3.0.0.dev<YYYYMMDDHHMM>` from the commit date before building — see
+  [`recipes/lib/stamp_kivy_version.py`](recipes/lib/stamp_kivy_version.py).
 
 Each release records the pins it was built from, and the run that produced it.
 
@@ -81,17 +84,27 @@ assume hashes carry over.
 
 ```
 recipes/
-  PINNED_REFS.toml     exact upstream commits (see above)
-  lib/pins.sh          reads PINNED_REFS.toml; no branch-name fallback
-  android/             SDL2/SDL3 + Kivy + pyjnius build scripts
-    SDL3-FINDINGS.md   what the SDL3 investigation changed about the recipe
-    lib/               aar unwrapping, pre-cythonize, graft + wheel gates
-    sdl-glue/          org/libsdl/app/*.java extracted from the SDL2 tarball
-    sdl-glue-sdl3/     the same, extracted from the SDL3 .aar
-  ios/                 Kivy + pyobjus build scripts
-    lib/               minimum-iOS-version gate
-.github/workflows/     build matrices, release publication, index publication
-index-gen/             PEP 503 static index generator + its resolve gate
+  PINNED_REFS.toml          exact upstream commits (see above)
+  lib/pins.sh               reads PINNED_REFS.toml; no branch-name fallback
+  lib/stamp_kivy_version.py stamps Kivy 3.0 as 3.0.0.dev<YYYYMMDDHHMM>
+  android/                  SDL2/SDL3 + Kivy + pyjnius build scripts
+    SDL3-FINDINGS.md        what the SDL3 investigation changed about the recipe
+    lib/                    aar unwrapping, pre-cythonize, graft + wheel gates
+    sdl-glue/               org/libsdl/app/*.java extracted from the SDL2 tarball
+    sdl-glue-sdl3/          the same, extracted from the SDL3 .aar
+  ios/                      Kivy + pyobjus build scripts
+    lib/                    minimum-iOS-version gate
+.github/workflows/
+  build-android.yml         Android matrix, release, optional index publish
+  build-ios.yml             iOS matrix, release, optional index publish
+  publish-index.yml         PEP 503 index + pip resolve gate
+  watch-upstream.yml        weekly: PR when kivy/kivy master moves past the pin
+  refresh-kivy3.yml         one-shot Android+iOS rebuild on a pin merge
+  prune-dev-releases.yml    keep the newest 5 stamped Kivy 3.0.dev releases
+tools/
+  watch_upstream.py         pin drift detection + PR body
+  prune_dev_releases.py     delete superseded .dev releases
+index-gen/                  PEP 503 static index generator + its resolve gate
 ```
 
 ### `recipes/android/sdl-glue/` and `sdl-glue-sdl3/`
@@ -113,21 +126,30 @@ distribution path is one more thing that can drift.
 
 Every target in the scope table above is published and resolvable from the index.
 
-Builds are dispatched by hand from the Actions tab — `build-android` /
-`build-ios`, with `publish` set — because their inputs change rarely and there is
-nothing useful to trigger on. From there the run is self-contained: it builds,
-gates, creates the GitHub Release, and republishes the index. Release assets are
-append-only unless `replace_assets` is set, since overwriting a published wheel
-changes its `sha256` and breaks every lock file that pins it.
+**Kivy 3.0 refreshes.** Upstream's version is the literal `3.0.0.dev0` on every
+commit, so the recipes stamp it to `3.0.0.dev<YYYYMMDDHHMM>` from the commit's
+own date before building. Each commit gets its own release tag; old lock files
+keep resolving. `watch-upstream` polls `kivy/kivy` master weekly (read-only —
+nothing is sent upstream) and opens a PR that bumps both platform pins. Merging
+that PR runs `refresh-kivy3`, which builds Android and iOS, publishes both
+releases, and republishes the index once. Manual one-offs still work through
+`refresh-kivy3` or the per-platform workflows. Dev releases older than the newest
+five per platform are pruned monthly.
+
+**Everything else** (Kivy 2.3.1, pyjnius, pyobjus) is still dispatched by hand
+from the Actions tab — `build-android` / `build-ios`, with `publish` set —
+because those pins change rarely and carry "look before bumping" notes. From
+there each run is self-contained: it builds, gates, creates the GitHub Release,
+and republishes the index. Release assets are append-only unless `replace_assets`
+is set, since overwriting a published wheel changes its `sha256` and breaks every
+lock file that pins it.
 
 Every published wheel, on both platforms, was built by these workflows. The iOS
 wheels were originally local builds; they were rebuilt and republished in CI on
-2026-07-27 so the whole index has one provenance story.
-
-That rebuild changed every iOS `sha256`, which is what a rebuild always does here
-— see the note on bit-reproducibility above. `hello-kivy`'s `pylock.ios.toml` was
-re-pointed at the new hashes; the simulator validation those wheels carried was
-done against the bytes they replaced, so it needs repeating to carry forward.
+2026-07-27 so the whole index has one provenance story. That rebuild changed
+every iOS `sha256` — see the note on bit-reproducibility above — and the
+simulator validation those wheels carried was done against the bytes they
+replaced, so it needs repeating to carry forward.
 
 ## License
 

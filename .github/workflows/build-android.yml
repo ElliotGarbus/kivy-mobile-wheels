@@ -29,6 +29,34 @@ on:
         required: false
         default: false
         type: boolean
+      update_index:
+        description: >-
+          Republish the index after the release. Turn off when a caller
+          publishes several targets and updates the index once at the end.
+        required: false
+        default: true
+        type: boolean
+
+  # refresh-kivy3.yml drives both platforms from one dispatch. `target` is a
+  # string here because `choice` is a workflow_dispatch-only type; the recipe
+  # name is still validated by there being a script with that name.
+  workflow_call:
+    inputs:
+      target:
+        required: true
+        type: string
+      publish:
+        required: false
+        default: false
+        type: boolean
+      replace_assets:
+        required: false
+        default: false
+        type: boolean
+      update_index:
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -229,6 +257,7 @@ jobs:
 
   index:
     needs: release
+    if: inputs.update_index
     permissions:
       contents: read
       pages: write
