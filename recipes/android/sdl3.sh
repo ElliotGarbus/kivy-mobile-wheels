@@ -14,6 +14,27 @@
 # a wheel that builds, passes every other check, and fails to load on any
 # Android 15/16 device with 16 KB pages. See SDL3-FINDINGS.md.
 #
+# THIS WORKAROUND IS EXPECTED TO EXPIRE. The fault is in how that .aar was
+# linked, not in SDL3_ttf: building the same 3.2.2 source with
+# -Wl,-z,max-page-size=16384 yields a correctly aligned library, which is what
+# happens below.
+#
+# The version skew is not a coordinated release ttf was left out of — SDL's
+# satellites each release on their own train (image is on 3.4.x, mixer on
+# 3.2.x, and both still cut SDL2-line releases alongside). SDL_ttf has simply
+# published nothing since 3.2.2 in March 2025, though its main branch is at
+# 3.3.0 and active. SDL versions odd minors as development and even as stable
+# — image went prerelease-3.3.2/3.3.4 then release-3.4.0 — so ttf's 3.3.x line
+# is what becomes 3.4.0.
+#
+# When that lands, re-measure its .aar before doing anything else:
+#
+#   python3 recipes/android/lib/unwrap_sdl3_aar.py <zip> <sha256> /tmp/probe x86_64
+#
+# If it reports 0x4000, delete the from-source build below and let ttf be
+# extracted like its three siblings. Do not carry this step longer than the
+# problem it exists for.
+#
 # Usage:
 #   recipes/android/sdl3.sh <abi> [outdir]      # arm64-v8a | x86_64
 #

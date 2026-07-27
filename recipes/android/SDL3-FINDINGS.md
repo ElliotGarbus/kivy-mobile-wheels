@@ -67,20 +67,42 @@ Measured `p_align` of every `PT_LOAD` segment in the published `.aar`s:
 | SDL3_mixer | 3.2.4 | `0x4000` | `0x4000` | ok |
 | **SDL3_ttf** | **3.2.2** | **`0x1000`** | **`0x1000`** | **fails** |
 
-3.2.2 (2025-03-31) is the newest SDL3_ttf release; there is no newer one to
-move to. Its 3.2.x line predates the 16 KB requirement, while SDL3 and
-SDL3_image have moved on to 3.4.x.
+An app linking the published library would build cleanly, pass every other
+check, and then fail to load on any Android 15/16 device with 16 KB pages.
+**So SDL3_ttf is built from source** with `-Wl,-z,max-page-size=16384`, the
+same treatment the whole SDL2 line needed; the other three are used as
+published.
 
-An app linking this would build cleanly, pass every other check, and then fail
-to load on any Android 15/16 device with 16 KB pages.
+Worth stating plainly because the plan assumed the opposite: *"SDL3 publishes
+an official prebuilt … which should be cheaper"*. It is cheaper — three of
+four — but not free, and the exception is invisible unless measured.
 
-**So SDL3_ttf must be built from source** with
-`-Wl,-z,max-page-size=16384`, the same treatment the whole SDL2 line needed.
-The other three are used as published.
+### Why ttf is on 3.2.x while SDL3 and SDL3_image are on 3.4.x
 
-This is worth stating plainly because the plan assumed the opposite: *"SDL3
-publishes an official prebuilt … which should be cheaper"*. It is cheaper —
-three of four — but not free, and the exception is invisible unless measured.
+3.2.2 (2025-03-31) is the newest SDL3_ttf release — confirmed against all
+releases including prereleases, the `releases/latest` endpoint, and the tag
+list. There is nothing newer to move to.
+
+**This is not a coordinated release ttf was omitted from.** SDL's satellites
+each release on their own train, and still cut SDL2-line releases in parallel:
+
+| | line | latest |
+|---|---|---|
+| SDL_image | 3.2.6 -> 3.4.0 -> 3.4.2 -> 3.4.4 | 2026-05-01 |
+| SDL_mixer | 3.2.0 -> 3.2.2 -> 3.2.4 | 2026-06-03 |
+| SDL_ttf | 3.2.0 -> 3.2.2 | 2025-03-31 |
+
+SDL_ttf has simply published nothing in 16 months, though its repository is
+active (`main` pushed 2026-07-05) and its in-development version is **3.3.0**.
+SDL treats odd minors as development and even as stable — SDL_image went
+`prerelease-3.3.2`, `prerelease-3.3.4`, then `release-3.4.0` — so ttf's 3.3.x
+line is what becomes 3.4.0.
+
+The defect is in how the published `.aar` was linked, not in SDL3_ttf itself:
+the same 3.2.2 source built with `-Wl,-z,max-page-size=16384` produces a
+correctly aligned library, verified in CI on both ABIs. So when 3.4.0 lands,
+re-measure its `.aar` first — if it is 16 KB-aligned, the from-source step
+should be deleted rather than carried forward.
 
 ## 4. The `.aar` carries the Java glue as source
 
@@ -104,5 +126,7 @@ impossible by construction, exactly as `sdl-glue/` does for SDL2.
    what caught this, and it has to run on whatever is actually shipped.
 5. Capture the glue into `sdl-glue-sdl3/<version>/` for kivyforge to vendor.
 6. Kivy 3 is unreleased, so it builds from a pinned commit like the iOS side.
-   `can_use_cython` on Android needs re-checking for Kivy 3 — if it is still
-   False, the same pre-cythonize step as 2.3.1 applies.
+   **No pre-cythonize step is needed**: `can_use_cython` — the switch that
+   disabled Cython on Android in 2.3.1 — does not exist in Kivy 3, which
+   imports Cython unconditionally. It only has to be present in cibuildwheel's
+   cross-venv, which runs with `--no-isolation`.
