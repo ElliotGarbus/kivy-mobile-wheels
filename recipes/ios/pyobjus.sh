@@ -16,10 +16,13 @@
 #   recipes/ios/pyobjus.sh [OUTPUT_DIR]
 #
 # Environment:
-#   IOS_DEPLOYMENT_TARGET  Minimum iOS version (default: 16.0). The
-#                          python.org cp315 binary targets iOS 13.0, so
-#                          wheels may still tag as ios_13_0_* — that is fine,
-#                          a lower min-OS is compatible with a 16.0 project.
+#   IOS_DEPLOYMENT_TARGET  Minimum iOS version to link against (default: 16.0).
+#                          The python.org cp315 framework targets iOS 13.0 and
+#                          the wheel tag comes from the interpreter, so these
+#                          wheels tag as ios_13_0_* regardless — that is fine, a
+#                          lower tag is compatible with a 16.0 project. What was
+#                          actually linked is checked by
+#                          recipes/ios/lib/check_min_os.py.
 #
 # The commit built is read from PINNED_REFS.toml's [ios.pyobjus] — there is
 # no branch-name fallback; a missing pin fails the build.
@@ -93,8 +96,9 @@ export CIBW_PLATFORM=ios
 export CIBW_ARCHS="arm64_iphoneos arm64_iphonesimulator x86_64_iphonesimulator"
 export CIBW_ENABLE=cpython-prerelease
 export CIBW_BUILD="cp315-*"
-# iOS builds run in an isolated cross-venv; cibuildwheel defaults the wheel tag
-# to 13.0 unless IPHONEOS_DEPLOYMENT_TARGET is injected via CIBW_ENVIRONMENT_IOS.
+# iOS builds run in an isolated cross-venv, so exporting IPHONEOS_DEPLOYMENT_TARGET
+# here would never reach the compiler; injecting it via CIBW_ENVIRONMENT_IOS does.
+# This sets what the extension links against, not the wheel's tag — see the header.
 export CIBW_ENVIRONMENT_IOS="IPHONEOS_DEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET"
 
 WHEELHOUSE="$(mktemp -d "$BUILD_ROOT/pyobjus-wheelhouse.XXXXXX")"

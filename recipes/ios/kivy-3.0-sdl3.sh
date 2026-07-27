@@ -10,12 +10,20 @@
 #   recipes/ios/kivy-3.0-sdl3.sh [OUTPUT_DIR]
 #
 # Environment:
-#   IOS_DEPLOYMENT_TARGET  Minimum iOS version for wheel platform tags and
-#                          linked xcframeworks (default: 16.0). Passed to
-#                          cibuildwheel as CIBW_ENVIRONMENT_IOS so wheel tags
-#                          become ios_16_0_* (not the cibuildwheel default
-#                          13.0) — exporting it in the shell is not enough,
-#                          iOS builds run in an isolated cross-venv.
+#   IOS_DEPLOYMENT_TARGET  Minimum iOS version to link against (default: 16.0,
+#                          which Kivy's xcframeworks require). Passed to
+#                          cibuildwheel as CIBW_ENVIRONMENT_IOS, because iOS
+#                          builds run in an isolated cross-venv and exporting it
+#                          in this shell would not reach the compiler.
+#
+#                          It does NOT change the wheel's platform tag. That
+#                          comes from the interpreter — python.org's CPython iOS
+#                          framework is built for 13.0 — so these wheels are
+#                          tagged ios_13_0_* even at 16.0, and that is correct:
+#                          a lower tag installs into any project with a 16.0
+#                          target. recipes/ios/lib/check_min_os.py reads the
+#                          Mach-O load commands, which are the only place the
+#                          real minimum is visible.
 #
 # The commit built is read from PINNED_REFS.toml's [ios.kivy] — there is no
 # branch-name fallback; a missing pin fails the build.
@@ -87,10 +95,13 @@ export CIBW_PLATFORM=ios
 export CIBW_ARCHS="arm64_iphoneos arm64_iphonesimulator x86_64_iphonesimulator"
 export CIBW_ENABLE=cpython-prerelease
 export CIBW_BUILD="cp315-*"
-# Kivy's SDL3/ANGLE/ThorVG xcframeworks target iOS 16+. cibuildwheel uses
-# IPHONEOS_DEPLOYMENT_TARGET for linker flags and ios_<major>_<minor>_* wheel
-# tags. Exporting it in the shell is not enough: iOS builds run in an isolated
-# cross-venv and cibuildwheel defaults to 13.0 unless injected via CIBW_*.
+# Kivy's SDL3/ANGLE/ThorVG xcframeworks target iOS 16+, so the extensions have
+# to be linked for 16.0 too. cibuildwheel passes IPHONEOS_DEPLOYMENT_TARGET
+# through to the compiler, but only from the build environment it constructs —
+# iOS builds run in an isolated cross-venv, so exporting it here would be
+# dropped. Injecting it via CIBW_ENVIRONMENT_IOS survives (cibuildwheel applies
+# CIBW_ENVIRONMENT first and then `setdefault`s 13.0, so an explicit value wins).
+# The resulting wheel is still tagged ios_13_0_*; see the header.
 export CIBW_ENVIRONMENT_IOS="IPHONEOS_DEPLOYMENT_TARGET=$IOS_DEPLOYMENT_TARGET"
 
 WHEELHOUSE="$(mktemp -d "$BUILD_ROOT/kivy-wheelhouse.XXXXXX")"
