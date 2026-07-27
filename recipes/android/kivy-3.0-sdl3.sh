@@ -70,6 +70,23 @@ cp "$SDL3_PREFIX/lib/$ABI"/libSDL3*.so "$KIVY_SRC/dist/libs/$ABI/"
 cp -r "$SDL3_PREFIX/include/." "$KIVY_SRC/dist/include/"
 ls "$KIVY_SRC/dist/libs/$ABI"
 
+# Kivy probes dist/include/<Name> for each of the four, prints
+# "Missing headers ..." for any it cannot find — and then carries on to build
+# a wheel with no SDL3 window/text/image provider. That wheel passes every
+# structural check (correct .so count, alignment, grafted libs) and is
+# unusable, so the staging is asserted here rather than trusted.
+missing=()
+for name in SDL3 SDL3_image SDL3_mixer SDL3_ttf; do
+  [[ -d "$KIVY_SRC/dist/include/$name" ]] || missing+=("$name")
+done
+if (( ${#missing[@]} )); then
+  echo "kivy3: headers missing for: ${missing[*]}" >&2
+  echo "  staged under $KIVY_SRC/dist/include:" >&2
+  ls "$KIVY_SRC/dist/include" >&2
+  exit 1
+fi
+echo "  headers staged for all four SDL3 libraries"
+
 # --- cibuildwheel -------------------------------------------------------------
 export CIBW_PLATFORM=android
 export CIBW_BUILD_FRONTEND=build

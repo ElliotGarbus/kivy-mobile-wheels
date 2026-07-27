@@ -95,9 +95,18 @@ def main() -> int:
                 misaligned.append((abi, lib))
             print(f"    {abi:12s} {lib:22s} "
                   f"p_align={[hex(a) for a in aligns]}{flag}")
-        # Headers.
-        elif "-Headers/include/" in entry and not entry.endswith("/"):
-            rel = entry.split("-Headers/include/", 1)[1]
+        # Headers. The module that carries them is named inconsistently across
+        # the family — SDL3 core uses `SDL3-Headers/include/`, while the
+        # satellites use `<Name>-shared/include/` — so match on `/include/`
+        # anywhere under prefab/modules rather than on a module-name pattern.
+        # Getting this wrong is quiet: Kivy prints "Missing headers ..." and
+        # carries on to build a wheel with no window provider.
+        elif (
+            entry.startswith("prefab/modules/")
+            and "/include/" in entry
+            and not entry.endswith(("/", ".keep"))
+        ):
+            rel = entry.split("/include/", 1)[1]
             dest = prefix / "include" / rel
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_bytes(aar.read(entry))
