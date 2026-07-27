@@ -97,30 +97,18 @@ python3 "$HERE/lib/kivy_precythonize.py" "$KIVY_SRC"
 # Android does not support the pip build frontend.
 export CIBW_PLATFORM=android
 export CIBW_BUILD_FRONTEND=build
+
+# cp314 is still a prerelease as far as cibuildwheel is concerned, so without
+# this the selector resolves to `enable=frozenset()`, matches nothing, and
+# cibuildwheel exits having built zero wheels — which reads like a bad build
+# pattern rather than a missing opt-in. This is what the arm64 job was missing
+# while x86_64 happened to work.
 export CIBW_ENABLE=cpython-prerelease
+export CIBW_ARCHS="$CIBW_ABI"
+export CIBW_BUILD="cp314-android_${CIBW_ABI}"
 
-# Ask cibuildwheel what it calls this ABI rather than guessing. A hardcoded
-# "cp314-android_arm64_v8a" selected nothing while the x86_64 spelling worked,
-# and cibuildwheel's response to an unmatched pattern is to build zero wheels
-# and exit — a failure that reads like a configuration error anywhere but here.
-echo "==> resolving the cibuildwheel build identifier"
-
-# Keep stderr: if cibuildwheel cannot enumerate, its reason is the diagnosis.
-ALL_IDS="$(python3 -m cibuildwheel --platform android \
-             --print-build-identifiers "$KIVY_SRC" || true)"
-echo "  cibuildwheel offers: ${ALL_IDS:-<none>}"
-# `|| true` is load-bearing: grep exits 1 on no match, and under `set -e` with
-# pipefail that status kills the script at the assignment — before the
-# diagnostic below can report what went wrong.
-BUILD_ID="$(printf '%s\n' "$ALL_IDS" | grep -E "^cp314-.*${CIBW_ABI}\$" | head -1 || true)"
-if [[ -z "$BUILD_ID" ]]; then
-  echo "kivy: no cp314 build identifier matching '$CIBW_ABI'." >&2
-  echo "  cibuildwheel offers:" >&2
-  printf '%s\n' "$ALL_IDS" | sed 's/^/    /' >&2
-  exit 1
-fi
-echo "  $BUILD_ID"
-export CIBW_BUILD="$BUILD_ID"
+# Note: `--print-build-identifiers` only enumerates the host architecture, so
+# it cannot be used to discover the arm64 identifier from an x86_64 runner.
 export CIBW_ENVIRONMENT_ANDROID="KIVY_CROSS_PLATFORM=android USE_SDL2=1 \
 KIVY_SPLIT_EXAMPLES=1 ANDROID_API_LEVEL=24 \
 KIVY_SDL2_PATH=$PREFIX/include/SDL2:$PREFIX/lib \
