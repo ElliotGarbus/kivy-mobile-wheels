@@ -90,14 +90,32 @@ export KIVY_SDL2_PATH="$PREFIX/include/SDL2:$PREFIX/lib"
 export NDKPLATFORM="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
 
 echo "==> pre-cythonizing (Kivy sets can_use_cython=False on Android)"
-python3 -m pip install -q "cython>=0.29.1,<=3.0.11" setuptools wheel
+python3 -m pip install -q "cython>=0.29.1,<=3.0.11" setuptools wheel cibuildwheel
 python3 "$HERE/lib/kivy_precythonize.py" "$KIVY_SRC"
 
 # --- cibuildwheel -------------------------------------------------------------
 # Android does not support the pip build frontend.
 export CIBW_PLATFORM=android
 export CIBW_BUILD_FRONTEND=build
-export CIBW_BUILD="cp314-android_${CIBW_ABI}"
+export CIBW_ENABLE=cpython-prerelease
+
+# Ask cibuildwheel what it calls this ABI rather than guessing. A hardcoded
+# "cp314-android_arm64_v8a" selected nothing while the x86_64 spelling worked,
+# and cibuildwheel's response to an unmatched pattern is to build zero wheels
+# and exit — a failure that reads like a configuration error anywhere but here.
+echo "==> resolving the cibuildwheel build identifier"
+
+ALL_IDS="$(python3 -m cibuildwheel --platform android \
+             --print-build-identifiers "$KIVY_SRC" 2>/dev/null || true)"
+BUILD_ID="$(printf '%s\n' "$ALL_IDS" | grep -E "^cp314-.*${CIBW_ABI}\$" | head -1)"
+if [[ -z "$BUILD_ID" ]]; then
+  echo "kivy: no cp314 build identifier matching '$CIBW_ABI'." >&2
+  echo "  cibuildwheel offers:" >&2
+  printf '%s\n' "$ALL_IDS" | sed 's/^/    /' >&2
+  exit 1
+fi
+echo "  $BUILD_ID"
+export CIBW_BUILD="$BUILD_ID"
 export CIBW_ENVIRONMENT_ANDROID="KIVY_CROSS_PLATFORM=android USE_SDL2=1 \
 KIVY_SPLIT_EXAMPLES=1 ANDROID_API_LEVEL=24 \
 KIVY_SDL2_PATH=$PREFIX/include/SDL2:$PREFIX/lib \
@@ -111,7 +129,7 @@ NDKPLATFORM=$NDKPLATFORM"
 export CIBW_REPAIR_WHEEL_COMMAND_ANDROID=""
 
 echo "==> cibuildwheel ($CIBW_BUILD)"
-python3 -m pip install -q cibuildwheel
+
 RAW="$BUILD_ROOT/raw-$ABI"
 rm -rf "$RAW"; mkdir -p "$RAW"
 python3 -m cibuildwheel --output-dir "$RAW" "$KIVY_SRC"
