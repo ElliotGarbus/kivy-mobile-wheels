@@ -55,6 +55,14 @@ jobs:
             "ndk;27.3.13750724" "cmake;3.22.1" >/dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
 
+      # The Kivy recipe links against the SDL2 line and grafts it into the
+      # wheel, and each job starts on a clean runner — so it has to be built
+      # here, in the same job. (The recipe checks for it and fails with that
+      # instruction rather than a confusing compile error.)
+      - name: Build SDL2 first
+        if: startsWith(inputs.target, 'kivy-')
+        run: bash recipes/android/sdl2.sh ${{ matrix.abi }}
+
       - name: Run recipe
         run: bash recipes/android/${{ inputs.target }}.sh ${{ matrix.abi }}
 
@@ -66,8 +74,10 @@ jobs:
       # files, so before the glue was committed this check passed on an empty
       # comparison and proved nothing. Untracked output here means the recipe
       # extracted a version that is not in the repo.
+      # Runs whenever sdl2.sh ran, which includes the Kivy targets that build
+      # it as a dependency — not just the standalone sdl2 target.
       - name: SDL glue matches the committed copy
-        if: inputs.target == 'sdl2'
+        if: inputs.target == 'sdl2' || startsWith(inputs.target, 'kivy-')
         run: |
           changes="$(git status --porcelain -- recipes/android/sdl-glue)"
           if [[ -n "$changes" ]]; then
