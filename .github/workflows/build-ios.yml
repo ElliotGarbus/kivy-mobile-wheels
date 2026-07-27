@@ -18,13 +18,13 @@ jobs:
   build:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # macos-14's system python3 is Homebrew-managed (PEP 668) and refuses
       # bare `pip install`. The recipes need an unmanaged host Python to drive
       # cibuildwheel with — this is the *host* interpreter, unrelated to the
       # cp315 iOS target the recipes cross-build.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -60,7 +60,7 @@ jobs:
           cd dist/ios
           shasum -a 256 *.whl | tee SHA256SUMS
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.target }}-ios-wheels
           path: dist/ios/*
