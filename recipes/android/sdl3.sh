@@ -113,12 +113,12 @@ cmake --install "$TTF_BUILD"
 
 # The install lands in lib/; mirror it into the per-ABI tree the rest of the
 # family uses so the assembly step below sees one consistent layout.
-cp -f "$PREFIX/lib/libSDL3_ttf.so" "$PREFIX/libs/$ABI/libSDL3_ttf.so"
+mv -f "$PREFIX/lib/libSDL3_ttf.so" "$PREFIX/lib/$ABI/libSDL3_ttf.so"
 
 # --- verify every library that will actually ship ----------------------------
 echo "==> verifying 16 KB alignment ($ABI)"
 fail=0
-for so in "$PREFIX/libs/$ABI"/libSDL3*.so; do
+for so in "$PREFIX/lib/$ABI"/libSDL3*.so; do
   [[ -f "$so" ]] || continue
   align="$(readelf -lW "$so" | awk '/LOAD/ {print $NF; exit}')"
   if [[ "$align" != "0x4000" ]]; then
@@ -130,10 +130,10 @@ for so in "$PREFIX/libs/$ABI"/libSDL3*.so; do
 done
 [[ "$fail" -eq 0 ]] || { echo "sdl3: alignment check failed" >&2; exit 1; }
 
-count="$(ls "$PREFIX/libs/$ABI"/libSDL3*.so | wc -l)"
+count="$(ls "$PREFIX/lib/$ABI"/libSDL3*.so | wc -l)"
 [[ "$count" -eq 4 ]] || {
   echo "sdl3: expected 4 libraries, found $count" >&2
-  ls "$PREFIX/libs/$ABI" >&2
+  ls "$PREFIX/lib/$ABI" >&2
   exit 1
 }
 

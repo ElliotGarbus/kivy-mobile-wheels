@@ -75,13 +75,12 @@ def main() -> int:
                 continue
             data = aar.read(entry)
             lib = entry.rsplit("/", 1)[1]
-            dest = prefix / "libs" / abi
+            # lib/<abi>/, which is where SDL3Config.cmake looks — it resolves
+            # ${prefix}/lib/<abi>/libSDL3.so and hard-errors if that is
+            # missing, so this layout is SDL's choice, not ours.
+            dest = prefix / "lib" / abi
             dest.mkdir(parents=True, exist_ok=True)
             (dest / lib).write_bytes(data)
-            # A per-ABI copy in lib/ as well, so a cmake find_package against
-            # this prefix resolves without knowing the layout.
-            if abi == abis[0]:
-                (prefix / "lib" / lib).write_bytes(data)
             aligns = p_align_values(data)
             flag = "" if all(a == WANT_ALIGN for a in aligns) else "  <-- NOT 16 KB"
             if flag:

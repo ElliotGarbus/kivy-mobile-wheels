@@ -42,7 +42,7 @@ WHEELHOUSE="$BUILD_ROOT/wheelhouse"
 KIVY_SRC="$SRC/kivy3"
 mkdir -p "$SRC" "$WHEELHOUSE"
 
-[[ -f "$SDL3_PREFIX/libs/$ABI/libSDL3.so" ]] || {
+[[ -f "$SDL3_PREFIX/lib/$ABI/libSDL3.so" ]] || {
   echo "kivy3: no SDL3 at $SDL3_PREFIX — run recipes/android/sdl3.sh $ABI first" >&2
   exit 1
 }
@@ -66,7 +66,7 @@ git -C "$KIVY_SRC" clean -xfd >/dev/null
 echo "==> staging SDL3 into <kivy-src>/dist"
 rm -rf "$KIVY_SRC/dist"
 mkdir -p "$KIVY_SRC/dist/libs/$ABI" "$KIVY_SRC/dist/include"
-cp "$SDL3_PREFIX/libs/$ABI"/libSDL3*.so "$KIVY_SRC/dist/libs/$ABI/"
+cp "$SDL3_PREFIX/lib/$ABI"/libSDL3*.so "$KIVY_SRC/dist/libs/$ABI/"
 cp -r "$SDL3_PREFIX/include/." "$KIVY_SRC/dist/include/"
 ls "$KIVY_SRC/dist/libs/$ABI"
 
@@ -104,7 +104,7 @@ wheel="$(ls "$RAW"/*.whl | head -1)"
 [[ -n "$wheel" ]] || { echo "kivy3: cibuildwheel produced no wheel" >&2; exit 1; }
 
 echo "==> grafting SDL3 into $(basename "$wheel")"
-python3 "$HERE/lib/graft_libs.py" "$wheel" "$SDL3_PREFIX/libs/$ABI" "$WHEELHOUSE"
+python3 "$HERE/lib/graft_libs.py" "$wheel" "$SDL3_PREFIX/lib/$ABI" "$WHEELHOUSE"
 
 echo
 echo "Wheel: $(ls "$WHEELHOUSE"/[Kk]ivy*"$CIBW_ABI"*.whl)"

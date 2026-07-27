@@ -67,9 +67,11 @@ def main() -> int:
         libs: list[Path] = []
     else:
         libdir = Path(sys.argv[2]).resolve()
-        libs = sorted(libdir.glob("libSDL2*.so"))
+        # Both SDL generations; the Kivy 2.3.1 recipe passes an SDL2 prefix and
+        # the Kivy 3 recipe an SDL3 one.
+        libs = sorted(libdir.glob("libSDL*.so"))
         if not libs:
-            print(f"graft: no libSDL2*.so in {libdir}", file=sys.stderr)
+            print(f"graft: no libSDL*.so in {libdir}", file=sys.stderr)
             return 1
 
     # Nothing to graft: verify in place and copy the wheel through untouched.
