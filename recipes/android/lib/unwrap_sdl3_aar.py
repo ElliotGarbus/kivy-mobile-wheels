@@ -68,8 +68,11 @@ def main() -> int:
 
     misaligned = []
     for entry in aar.namelist():
-        # Shared libraries, per ABI. Skip the *_test static modules.
-        if entry.endswith(".so") and "-shared/libs/android." in entry:
+        # Libraries, per ABI. The static SDL3_test.a is extracted too, not to
+        # ship it but because SDL3Config.cmake set_and_check()s its path and
+        # hard-errors when it is absent — find_package(SDL3) fails without it
+        # even though nothing here links it.
+        if entry.endswith((".so", ".a")) and "/libs/android." in entry:
             abi = entry.split("android.")[1].split("/")[0]
             if abi not in abis:
                 continue
@@ -81,6 +84,11 @@ def main() -> int:
             dest = prefix / "lib" / abi
             dest.mkdir(parents=True, exist_ok=True)
             (dest / lib).write_bytes(data)
+            if lib.endswith(".a"):
+                # Static archives have no program headers to align, and are
+                # never shipped — only referenced by the cmake config.
+                print(f"    {abi:12s} {lib:22s} (static, for find_package only)")
+                continue
             aligns = p_align_values(data)
             flag = "" if all(a == WANT_ALIGN for a in aligns) else "  <-- NOT 16 KB"
             if flag:
