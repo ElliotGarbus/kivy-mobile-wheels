@@ -46,12 +46,29 @@ def project_of(filename: str) -> str | None:
 
 
 def api(path: str) -> list[dict]:
-    request = Request(f"{API}{path}", headers={"Accept": "application/vnd.github+json"})
+    """Every page of a list endpoint.
+
+    Paginated because the default page size is 30: without this the index would
+    silently start dropping the oldest releases once there were more than that,
+    and a wheel missing from the index looks identical to one never built.
+    """
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
-    if token:
-        request.add_header("Authorization", f"Bearer {token}")
-    with urlopen(request, timeout=60) as response:
-        return json.load(response)
+    separator = "&" if "?" in path else "?"
+    items: list[dict] = []
+    page = 1
+    while True:
+        url = f"{API}{path}{separator}per_page=100&page={page}"
+        request = Request(url, headers={"Accept": "application/vnd.github+json"})
+        if token:
+            request.add_header("Authorization", f"Bearer {token}")
+        with urlopen(request, timeout=60) as response:
+            batch = json.load(response)
+        if not isinstance(batch, list):
+            return batch
+        items.extend(batch)
+        if len(batch) < 100:
+            return items
+        page += 1
 
 
 def sha256sums(url: str) -> dict[str, str]:
