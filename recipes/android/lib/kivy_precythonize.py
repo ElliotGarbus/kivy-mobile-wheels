@@ -17,7 +17,9 @@ Three non-obvious things this has to get right, each of which cost a build:
 
 2. Only the extensions Kivy actually builds on Android may be cythonized —
    38 of the 45. Cythonizing all of them fails on desktop-only sources such as
-   ``window_x11.pyx``. They are captured from the same ``build_ext`` pass:
+   ``window_x11.pyx``. They are captured from the same ``build_ext`` pass —
+   noting that Kivy has already rewritten each source from ``foo.pyx`` to
+   ``foo.c`` (``can_use_cython`` is False on Android), so the capture maps back:
    ``build_extension`` receives exactly the extensions the configured platform
    builds, which is both simpler and more truthful than re-running setup.py
    with ``setuptools.setup`` intercepted (executing that module twice in one
@@ -85,18 +87,26 @@ def configure(src: Path) -> tuple[Path, list[str]]:
     if not config.is_file():
         raise SystemExit(f"config.pxi was not generated at {config}")
 
-    sources = [
-        source
-        for ext in captured
-        for source in ext.sources
-        if source.endswith(".pyx")
-    ]
+    # Kivy has already rewritten every source from foo.pyx to foo.c, because
+    # can_use_cython is False on Android (get_extensions_from_sources:
+    # "can't use cython, so use the .c files instead"). Those .c files are
+    # exactly what does not exist yet — map back to the .pyx that generates
+    # each one. Only sources with a real .pyx qualify; hand-written .c and the
+    # extra c_depends entries pass through untouched.
+    sources = []
+    for ext in captured:
+        for source in ext.sources:
+            if not source.endswith(".c"):
+                continue
+            pyx = source[:-2] + ".pyx"
+            if Path(pyx).is_file():
+                sources.append(pyx)
     if not sources:
         raise SystemExit(
             "no .pyx sources captured from build_ext; either the platform was "
             "not detected as android or Kivy's build_extensions did not run."
         )
-    return config, sources
+    return config, sorted(set(sources))
 
 
 def check_config(config: Path) -> None:
