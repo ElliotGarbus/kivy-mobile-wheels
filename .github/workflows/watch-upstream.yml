@@ -10,6 +10,11 @@
 # a human does the merge. Enabling auto-merge with the default token would not
 # trigger it, since events raised by GITHUB_TOKEN deliberately do not start new
 # workflow runs.
+#
+# Required repo setting (Settings → Actions → General → Workflow permissions):
+#   "Allow GitHub Actions to create and approve pull requests"
+# Without that, the branch pushes and then `gh pr create` fails with
+# "GitHub Actions is not permitted to create or approve pull requests".
 name: watch-upstream
 
 on:
