@@ -2,8 +2,9 @@
 # Build the pyjnius Android wheel.
 #
 # Simpler than the Kivy recipe: pyjnius has no native dependency to build
-# first, ships no Java, and needs no pre-cythonize step — its setup.py
-# cythonizes normally on Android.
+# first and ships no Java. It still needs the pre-cythonize step below
+# (cibuildwheel's --no-isolation --skip-dependency-check skips setup.py's
+# declared Cython build-require, so jnius.c must exist before the build runs).
 #
 # Source is a git checkout pinned to an exact commit in
 # recipes/PINNED_REFS.toml. The Android wheel work is not upstream yet (see the
