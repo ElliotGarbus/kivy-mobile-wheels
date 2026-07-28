@@ -32,7 +32,7 @@ kivy/pyjnius rather than advancing this fork.
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
+commit = "854f1e68d46659cca4081309177d07b7329aa42b"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-06-22 —
 the commit that first validated these wheels on the simulator.
@@ -68,7 +68,7 @@ pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 [android.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
+commit = "854f1e68d46659cca4081309177d07b7329aa42b"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
