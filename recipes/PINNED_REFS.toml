@@ -32,10 +32,13 @@ kivy/pyjnius rather than advancing this fork.
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
+commit = "71407bc176eaa93c98b2b3877c4e63c6d4476fc3"
 note = """
-Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-06-22 —
-the commit that first validated these wheels on the simulator.
+Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-07-30.
+
+Not yet device- or simulator-validated at this pin — see the re-validate
+line below. (The 2026-06-22 commit this replaced was the one that first
+validated these wheels on the simulator.)
 
 Deliberately NOT floating on master. Each bump is a reviewed change to this
 file (watch-upstream.yml opens the PR; a human merges it). Recipes stamp the
@@ -68,7 +71,7 @@ pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 [android.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "a933f859b4d0add7267798ffba5abb1a456da7f4"
+commit = "71407bc176eaa93c98b2b3877c4e63c6d4476fc3"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
