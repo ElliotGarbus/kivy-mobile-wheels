@@ -36,9 +36,11 @@ commit = "71407bc176eaa93c98b2b3877c4e63c6d4476fc3"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-07-30.
 
-Not yet device- or simulator-validated at this pin — see the re-validate
-line below. (The 2026-06-22 commit this replaced was the one that first
-validated these wheels on the simulator.)
+**iOS is not yet simulator- or device-validated at this pin.** It moved in
+step with [android.kivy] (same commit, same stamped version), and the
+validation done for that bump was Android-only — see the note there. The
+2026-06-22 commit this replaced was the one that last validated these
+wheels on the simulator.
 
 Deliberately NOT floating on master. Each bump is a reviewed change to this
 file (watch-upstream.yml opens the PR; a human merges it). Recipes stamp the
@@ -77,6 +79,15 @@ Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
 rewrites both commit lines together; do not split them without also changing
 how stamp_kivy_version.py predicts the release tag.
+
+**Validated at this pin (2026-07-31), both ABIs:** x86_64 on an API-36
+emulator and arm64_v8a on a Pixel 8a (Android 16). The app renders, and
+kivy.mobile.get_safe_area() returns real insets — this is the first pin
+where the Android implementation is not the all-zero placeholder, so the
+safe-area path is newly exercised rather than merely non-crashing.
+Insets arrive in **pixels** on Android (UIKit points on iOS), which is
+worth knowing because kivy/mobile/__init__.py documents "layout points"
+for both without the per-platform caveat.
 
 Its setup.py resolves Android SDL3 from <cwd>/dist/libs/<abi> and
 <cwd>/dist/include, using os.getcwd() rather than KIVY_DEPS_ROOT, so the
