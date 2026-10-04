@@ -170,6 +170,15 @@ echo "==> capturing Java glue -> ${GLUE_DEST#"$REPO_ROOT/"}"
 mkdir -p "$GLUE_DEST/org/libsdl/app"
 cp "$SRC/SDL2-$SDL2_VERSION"/android-project/app/src/main/java/org/libsdl/app/*.java \
    "$GLUE_DEST/org/libsdl/app/"
+# Java-only patches, applied to the fresh copy so the committed glue is always
+# "tarball + these patches" and the CI glue check still means something. They
+# touch nothing native, so the glue stays matched to libSDL2.so.
+# See sdl-glue-patches/README.md.
+for p in "$HERE/sdl-glue-patches/$SDL2_VERSION"/*.patch; do
+  [[ -e "$p" ]] || continue
+  echo "    applying ${p#"$REPO_ROOT/"}"
+  patch -p1 --forward --no-backup-if-mismatch -d "$GLUE_DEST" < "$p"
+done
 cp "$SRC/SDL2-$SDL2_VERSION/LICENSE.txt" "$GLUE_DEST/LICENSE-SDL.txt"
 grep -E '#define SDL_(MAJOR_VERSION|MINOR_VERSION|PATCHLEVEL)' \
   "$SRC/SDL2-$SDL2_VERSION/include/SDL_version.h" > "$GLUE_DEST/SDL_REVISION.txt"
