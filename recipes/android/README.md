@@ -125,7 +125,8 @@ Every wheel, before it is published:
 3. Top-level `.libs/` is flat, sonames unchanged (no hash suffixes, no per-ABI
    subdirectories).
 4. Extensions carry plain `DT_NEEDED` on `libSDL2.so`.
-5. `sdl-glue/<version>/` matches a fresh extraction from the pinned tarball.
+5. `sdl-glue/<version>/` matches a fresh extraction from the pinned tarball,
+   with `sdl-glue-patches/<version>/*.patch` applied.
    (`build-android.yml`)
 6. The wheel resolves from the deployed index by name, version and platform tag,
    with a matching `sha256`. (`index-gen/verify_index.py`, run by

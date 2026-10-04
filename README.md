@@ -91,6 +91,7 @@ recipes/
     SDL3-FINDINGS.md        what the SDL3 investigation changed about the recipe
     lib/                    aar unwrapping, pre-cythonize, graft + wheel gates
     sdl-glue/               org/libsdl/app/*.java extracted from the SDL2 tarball
+    sdl-glue-patches/       Java-only patches sdl2.sh applies to that extraction
     sdl-glue-sdl3/          the same, extracted from the SDL3 .aar
   ios/                      Kivy + pyobjus build scripts
     lib/                    minimum-iOS-version gate
@@ -118,7 +119,9 @@ called, and no Python runs. Both SDL generations enforce this.
 
 So the glue is extracted from the same verified artifact that builds the
 library — the tarball for SDL2, the `.aar` for SDL3 — committed alongside it,
-and checked in CI. It is not published as a
+and checked in CI. The SDL2 glue carries one Java-only patch, applied by
+`sdl2.sh` during extraction, so Kivy 2.3.1 can set the soft keyboard's type
+(`recipes/android/sdl-glue-patches/README.md`). It is not published as a
 release asset: nobody `pip install`s a `.java` file, and a second copy on the
 distribution path is one more thing that can drift.
 
