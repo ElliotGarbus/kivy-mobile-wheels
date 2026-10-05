@@ -12,6 +12,12 @@ otherwise from a ``SHA256SUMS`` asset published alongside the wheels. A wheel
 with neither is skipped rather than published unverified: an unpinnable wheel
 in a lock file is worse than a missing one.
 
+A wheel whose release also carries ``<wheel>.metadata`` (see
+tools/wheel_metadata.py) gets PEP 658/714 attributes, so pip reads its
+dependencies from that small file instead of downloading the whole wheel to
+resolve. Without one the anchor is plain and pip falls back to the wheel, which
+is how releases from before the metadata existed still behave.
+
 Usage:
     GH_TOKEN=... python index-gen/generate_index.py --output public/simple
 """
@@ -93,9 +99,13 @@ def sha256sums(url: str) -> dict[str, str]:
     return out
 
 
-def collect() -> dict[str, list[tuple[str, str]]]:
-    """{normalized project: [(filename, url#sha256), ...]} across all releases."""
-    projects: dict[str, list[tuple[str, str]]] = defaultdict(list)
+# (filename, url#sha256, sha256 of its .metadata or None)
+File = tuple[str, str, str | None]
+
+
+def collect() -> dict[str, list[File]]:
+    """{normalized project: [File, ...]} across all releases."""
+    projects: dict[str, list[File]] = defaultdict(list)
     for release in api(f"/repos/{REPO}/releases"):
         if release.get("draft"):
             continue
@@ -105,6 +115,13 @@ def collect() -> dict[str, list[tuple[str, str]]]:
              if a["name"] == "SHA256SUMS"),
             {},
         )
+        by_name = {a["name"]: a for a in assets}
+
+        def sha256(asset: dict) -> str:
+            # The API digest is "sha256:<hex>" when present.
+            digest = (asset.get("digest") or "").removeprefix("sha256:")
+            return digest or sums.get(asset["name"], "")
+
         for asset in assets:
             name = asset["name"]
             project = project_of(name)
@@ -113,18 +130,50 @@ def collect() -> dict[str, list[tuple[str, str]]]:
             if normalize(project) in RETIRED:
                 print(f"  skipping {name}: {project} is on PyPI", file=sys.stderr)
                 continue
-            # The API digest is "sha256:<hex>" when present.
-            digest = (asset.get("digest") or "").removeprefix("sha256:")
-            digest = digest or sums.get(name, "")
+            digest = sha256(asset)
             if not digest:
                 print(f"  skipping {name}: no sha256", file=sys.stderr)
                 continue
             url = f"{asset['browser_download_url']}#sha256={digest}"
-            projects[normalize(project)].append((name, url))
+            metadata = metadata_sha(asset, by_name.get(name + ".metadata"), sha256)
+            projects[normalize(project)].append((name, url, metadata))
     return projects
 
 
-def write(output: Path, projects: dict[str, list[tuple[str, str]]]) -> None:
+def metadata_sha(wheel: dict, asset: dict | None, sha256) -> str | None:
+    """The hash of the wheel's ``.metadata`` asset, if it can be advertised.
+
+    pip is never told the metadata's own URL: it fetches the wheel's URL plus
+    ``.metadata``, so this only advertises an asset really served there. And
+    pip fails the whole resolve on metadata whose hash does not match, so one
+    with no recoverable hash is left out rather than advertised unverified —
+    pip then just downloads the wheel, as it did before.
+    """
+    if asset is None:
+        return None
+    if asset["browser_download_url"] != wheel["browser_download_url"] + ".metadata":
+        print(f"  {asset['name']}: not served at the wheel URL + .metadata", file=sys.stderr)
+        return None
+    digest = sha256(asset)
+    if not digest:
+        print(f"  {asset['name']}: no sha256, not advertised", file=sys.stderr)
+        return None
+    return digest
+
+
+def anchor(name: str, url: str, metadata: str | None) -> str:
+    # Both spellings: data-core-metadata is PEP 714's, and pip before 23.3
+    # reads only PEP 658's original data-dist-info-metadata.
+    attrs = (
+        f' data-core-metadata="sha256={metadata}"'
+        f' data-dist-info-metadata="sha256={metadata}"'
+        if metadata
+        else ""
+    )
+    return f'    <a href="{html.escape(url)}"{attrs}>{html.escape(name)}</a><br/>'
+
+
+def write(output: Path, projects: dict[str, list[File]]) -> None:
     output.mkdir(parents=True, exist_ok=True)
     links = "\n".join(
         f'    <a href="{name}/">{name}</a><br/>' for name in sorted(projects)
@@ -136,15 +185,13 @@ def write(output: Path, projects: dict[str, list[tuple[str, str]]]) -> None:
     for project, files in sorted(projects.items()):
         directory = output / project
         directory.mkdir(parents=True, exist_ok=True)
-        anchors = "\n".join(
-            f'    <a href="{html.escape(url)}">{html.escape(name)}</a><br/>'
-            for name, url in sorted(files)
-        )
+        anchors = "\n".join(anchor(*file) for file in sorted(files))
         (directory / "index.html").write_text(
             f"<!DOCTYPE html>\n<html><body>\n{anchors}\n</body></html>\n",
             encoding="utf-8",
         )
-        print(f"  {project}: {len(files)} file(s)")
+        with_metadata = sum(1 for *_, metadata in files if metadata)
+        print(f"  {project}: {len(files)} file(s), {with_metadata} with metadata")
 
 
 def main() -> int:
