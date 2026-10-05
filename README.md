@@ -36,7 +36,8 @@ extra_index_urls = ["https://elliotgarbus.github.io/kivy-mobile-wheels/simple/"]
 
 `kivyforge lock` then resolves these wheels exactly like any PyPI package,
 recording `url` + `sha256` in the lock file. No `find_links`, no vendored
-binaries in your project.
+binaries in your project. Each wheel's metadata is published beside it
+(PEP 658), so resolving reads a few KB per wheel instead of downloading it.
 
 > The index carries the real package names (`kivy`, `pyobjus`). pip
 > resolves across all configured indexes and takes the highest version, which
@@ -108,6 +109,7 @@ recipes/
 tools/
   watch_upstream.py         pin drift detection + PR body
   prune_dev_releases.py     delete superseded .dev releases
+  wheel_metadata.py         PEP 658 <wheel>.metadata assets (extract, backfill)
 index-gen/                  PEP 503 static index generator + its resolve gate
 archive/pyjnius/            retired pyjnius recipe (wheels now on PyPI)
 ```

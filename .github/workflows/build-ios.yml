@@ -109,10 +109,17 @@ jobs:
           python3 recipes/ios/lib/check_min_os.py \
             "$IOS_DEPLOYMENT_TARGET" dist/ios/*.whl
 
+      # PEP 658: pip reads <wheel URL>.metadata instead of downloading the whole
+      # wheel to resolve. See tools/wheel_metadata.py.
+      - name: Wheel metadata
+        run: python3 tools/wheel_metadata.py extract dist/ios/*.whl
+
+      # The .metadata files are listed too: generate_index.py needs their hashes
+      # to advertise them, and falls back to this when the API has no digest.
       - name: Checksums
         run: |
           cd dist/ios
-          shasum -a 256 *.whl | tee SHA256SUMS
+          shasum -a 256 *.whl *.whl.metadata | tee SHA256SUMS
 
       - uses: actions/upload-artifact@v7
         with:
@@ -201,7 +208,7 @@ jobs:
               ${{ steps.identity.outputs.prerelease }}
           fi
 
-          gh release upload "$TAG" dist/*.whl dist/SHA256SUMS --clobber
+          gh release upload "$TAG" dist/*.whl dist/*.whl.metadata dist/SHA256SUMS --clobber
           gh release view "$TAG" --json assets --jq '.assets[].name'
 
   index:

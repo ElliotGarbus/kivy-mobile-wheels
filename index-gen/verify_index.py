@@ -12,6 +12,12 @@ So this reads the deployed index, and for every wheel in it asks pip to resolve
 and download that exact wheel by name, version and platform tag. pip verifies
 the ``#sha256`` fragment on download, so a hash mismatch fails here too.
 
+Where an anchor advertises PEP 658 metadata, the ``.metadata`` file is fetched
+and hashed too: pip rejects a mismatch, and that fails the whole resolve rather
+than falling back to the wheel. For each wheel pip downloads, its own METADATA
+must also be what the ``.metadata`` file says, or consumers would lock against
+dependencies the installed wheel does not have.
+
 The platform arguments are derived from each wheel's own filename, so this needs
 no list of expected targets and cannot drift from what is actually published.
 
@@ -30,10 +36,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import subprocess
 import sys
 import tempfile
+import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -42,27 +50,27 @@ from urllib.request import urlopen
 
 
 class Links(HTMLParser):
-    """Every ``href`` on a PEP 503 page, in document order."""
+    """Every anchor on a PEP 503 page as {attribute: value}, in document order."""
 
     def __init__(self) -> None:
         super().__init__()
-        self.hrefs: list[str] = []
+        self.anchors: list[dict[str, str]] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag != "a":
             return
-        for name, value in attrs:
-            if name == "href" and value:
-                self.hrefs.append(value)
+        found = {name: value for name, value in attrs if value is not None}
+        if found.get("href"):
+            self.anchors.append(found)
 
 
-def fetch(url: str, attempts: int = 6) -> str:
+def fetch(url: str, attempts: int = 6) -> bytes:
     """GET ``url``, retrying — a fresh Pages deployment takes a moment to serve."""
     delay = 5
     for attempt in range(1, attempts + 1):
         try:
             with urlopen(url, timeout=60) as response:
-                return response.read().decode()
+                return response.read()
         except (HTTPError, URLError) as exc:
             if attempt == attempts:
                 raise
@@ -73,10 +81,54 @@ def fetch(url: str, attempts: int = 6) -> str:
     raise AssertionError("unreachable")
 
 
-def links(url: str) -> list[str]:
+def links(url: str) -> list[dict[str, str]]:
     parser = Links()
-    parser.feed(fetch(url))
-    return parser.hrefs
+    parser.feed(fetch(url).decode())
+    return parser.anchors
+
+
+def advertised_metadata(anchor: dict[str, str]) -> tuple[str | None, str | None]:
+    """(sha256 the index advertises for this wheel's metadata, or None; problem).
+
+    The two attribute spellings are read by different pip versions, so if they
+    disagree some consumers get a hash the file cannot match.
+    """
+    values = {
+        anchor[name]
+        for name in ("data-core-metadata", "data-dist-info-metadata")
+        if name in anchor
+    }
+    if not values:
+        return None, None
+    if len(values) > 1:
+        return None, f"metadata attributes disagree: {sorted(values)}"
+    (value,) = values
+    if not value.startswith("sha256="):
+        return None, f"metadata attribute carries no sha256: {value!r}"
+    return value.removeprefix("sha256="), None
+
+
+def check_metadata(href: str, expected: str) -> str | None:
+    """Fetch ``<wheel URL>.metadata`` as pip would; a problem, or None if sound."""
+    url = href.split("#")[0] + ".metadata"
+    try:
+        body = fetch(url, attempts=3)
+    except (HTTPError, URLError) as exc:
+        return f"{url} unreachable ({exc})"
+    actual = hashlib.sha256(body).hexdigest()
+    if actual != expected:
+        return f"{url} has sha256 {actual}, index says {expected}"
+    return None
+
+
+def wheel_metadata(wheel: Path) -> bytes | None:
+    """The wheel's top-level ``*.dist-info/METADATA``, or None if not exactly one."""
+    with zipfile.ZipFile(wheel) as archive:
+        found = [
+            name for name in archive.namelist()
+            if re.fullmatch(r"[^/]+\.dist-info/METADATA", name)
+        ]
+        return archive.read(found[0]) if len(found) == 1 else None
 
 
 WHEEL = re.compile(
@@ -204,22 +256,39 @@ def main() -> int:
     index_url = urljoin(base, "simple/")
 
     print(f"Verifying {index_url}")
-    projects = [href.strip("/") for href in links(index_url)]
+    projects = [anchor["href"].strip("/") for anchor in links(index_url)]
     if not projects:
         print("  no projects in the index; nothing to verify", file=sys.stderr)
         return 1
     print(f"  projects: {', '.join(projects)}")
 
     wheels: list[str] = []
+    # {wheel filename: advertised metadata sha256}
+    metadata: dict[str, str] = {}
+    failed: list[str] = []
     for project in projects:
         page = urljoin(index_url, f"{project}/")
-        for href in links(page):
+        for anchor in links(page):
+            href = anchor["href"]
             filename = href.split("#")[0].rsplit("/", 1)[-1]
-            if filename.endswith(".whl"):
-                wheels.append(filename)
+            if not filename.endswith(".whl"):
+                continue
+            wheels.append(filename)
+            # Every advertised .metadata is checked, superseded wheels included:
+            # it is a few KB each, and a bad one fails every resolve that sees
+            # that wheel as a candidate, whether or not it ends up chosen.
+            expected, problem = advertised_metadata(anchor)
+            if problem is None and expected is not None:
+                problem = check_metadata(urljoin(page, href), expected)
+            if problem is not None:
+                failed.append(f"{filename} metadata")
+                print(f"  FAIL {filename}: {problem}", file=sys.stderr)
+            elif expected is not None:
+                metadata[filename] = expected
     if not wheels:
         print("  index lists no wheels; nothing to verify", file=sys.stderr)
         return 1
+    print(f"  {len(metadata)} of {len(wheels)} wheels advertise sound metadata")
 
     if args.all:
         skipped = []
@@ -228,12 +297,26 @@ def main() -> int:
     if skipped:
         print(f"  {len(skipped)} superseded wheel(s) skipped; --all includes them")
 
-    failed = []
+    resolved = 0
     with tempfile.TemporaryDirectory() as tmp:
         destination = Path(tmp)
         for wheel in sorted(wheels):
             result = pip_download(wheel, index_url, destination)
             if result.returncode == 0 and (destination / wheel).exists():
+                resolved += 1
+                # The hash proves the .metadata file is the one the index
+                # meant; only the wheel itself can prove it is the right text.
+                # pip resolves from the file and installs the wheel, so a
+                # mismatch means a lock built on dependencies the wheel lacks.
+                if wheel in metadata:
+                    inside = wheel_metadata(destination / wheel)
+                    if inside is None or hashlib.sha256(inside).hexdigest() != metadata[wheel]:
+                        failed.append(f"{wheel} metadata")
+                        print(
+                            f"  FAIL {wheel}: .metadata differs from the wheel's own METADATA",
+                            file=sys.stderr,
+                        )
+                        continue
                 print(f"  ok   {wheel}")
                 continue
             failed.append(wheel)
@@ -242,7 +325,7 @@ def main() -> int:
                 if line.strip():
                     print(f"    {line}", file=sys.stderr)
 
-    print(f"\n{len(wheels) - len(failed)} of {len(wheels)} wheels resolved from the index")
+    print(f"\n{resolved} of {len(wheels)} wheels resolved from the index")
     if failed:
         print(
             "verify_index: the index is published but not usable. A consumer "
