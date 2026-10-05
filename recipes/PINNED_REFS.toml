@@ -21,7 +21,7 @@
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "71407bc176eaa93c98b2b3877c4e63c6d4476fc3"
+commit = "56baa54cbaf14697c0543e1806a98d52e1c54bb2"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-07-30.
 
@@ -62,7 +62,7 @@ pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 [android.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "71407bc176eaa93c98b2b3877c4e63c6d4476fc3"
+commit = "56baa54cbaf14697c0543e1806a98d52e1c54bb2"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
