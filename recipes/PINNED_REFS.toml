@@ -14,20 +14,9 @@
 # three satellites) and Kivy 2.3.1.
 #
 # Resolved 2026-07-26 via `git ls-remote <repo> <ref>`.
-
-[android.pyjnius]
-repo = "https://github.com/ElliotGarbus/pyjnius"
-ref = "spike/android-universal-wheel"
-commit = "0342053c74785c2833586aa8e97527a209bda48c"
-note = """
-Not merged upstream. Verified 2026-07-26: this branch is 20 commits ahead of
-kivy/pyjnius@master and 0 behind, carrying the Android wheel work
-(.github/workflows/android-wheels.yml, jnius/jnius_jvm_android.pxi,
-pyproject.toml, setup.py). kivy/pyjnius has no Android wheel CI.
-
-Re-check before bumping: if this lands upstream, repoint `repo` at
-kivy/pyjnius rather than advancing this fork.
-"""
+#
+# pyjnius used to be pinned here. It now publishes Android wheels on PyPI, so
+# the pin and recipe live under archive/pyjnius/ and are not built or indexed.
 
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"

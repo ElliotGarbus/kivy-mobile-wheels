@@ -17,10 +17,9 @@ resolves to something the wheel or the OS provides (see ``check_needed.py``).
 Both failures produce a wheel that builds and installs cleanly and then breaks
 on a device.
 
-``libdir`` may be ``-`` for wheels with nothing to graft (pyjnius bundles no
-third-party libraries). The wheel is still unpacked, verified and repacked —
-skipping the alignment check for those would leave the one property most easily
-lost unverified on half the wheels we ship.
+``libdir`` may be ``-`` for wheels with nothing to graft. The wheel is still
+unpacked, verified and repacked — skipping the alignment check for those would
+leave the one property most easily lost unverified.
 
 Usage:  graft_libs.py <wheel> <libdir|-> <outdir>
 """

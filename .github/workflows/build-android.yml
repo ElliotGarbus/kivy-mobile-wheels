@@ -16,7 +16,7 @@ on:
         description: Which recipe to build
         required: true
         type: choice
-        options: [sdl2, sdl3, kivy-2.3.1-sdl2, kivy-3.0-sdl3, pyjnius]
+        options: [sdl2, sdl3, kivy-2.3.1-sdl2, kivy-3.0-sdl3]
       publish:
         description: Publish a release from the built wheels and update the index
         required: false
@@ -191,7 +191,6 @@ jobs:
           case "${{ inputs.target }}" in
             kivy-2.3.1-sdl2) title="Kivy $version — Android (SDL2)" ;;
             kivy-3.0-sdl3)   title="Kivy $version — Android (SDL3)" ;;
-            pyjnius)         title="pyjnius $version — Android" ;;
             *)               title="$project $version — Android" ;;
           esac
           # PEP 440 pre-release/dev markers; upstream Kivy 3.0 is unreleased.

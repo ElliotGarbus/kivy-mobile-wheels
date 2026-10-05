@@ -6,7 +6,9 @@
 | `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 | **ported, published** |
 | `sdl3.sh` | SDL3 family, per ABI | release SHA-256 (ttf from source) | **ported** |
 | `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (stamped `3.0.0.devYYYYMMDDHHMM`) | **ported, published** |
-| `pyjnius.sh` | pyjnius 1.7.0 | `PINNED_REFS.toml` | **ported, published** |
+
+pyjnius is no longer built here. It publishes Android wheels on PyPI; the old
+recipe is in [`archive/pyjnius/`](../../archive/pyjnius/).
 
 ## Where the procedure came from
 

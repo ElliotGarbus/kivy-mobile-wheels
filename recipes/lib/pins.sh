@@ -10,7 +10,7 @@ set -euo pipefail
 PINS_FILE="${PINS_FILE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/PINNED_REFS.toml}"
 PINS_PYTHON="${PINS_PYTHON:-$(command -v python3 || command -v python || true)}"
 
-# pin_get <section> <key>   e.g. pin_get android.pyjnius commit
+# pin_get <section> <key>   e.g. pin_get android.kivy commit
 #
 # Errors are checked explicitly rather than left to `set -e`: errexit is
 # disabled inside a function called in a `||` list or a command substitution,

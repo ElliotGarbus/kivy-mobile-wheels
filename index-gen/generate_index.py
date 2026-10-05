@@ -32,6 +32,11 @@ from urllib.request import Request, urlopen
 REPO = os.environ.get("GITHUB_REPOSITORY", "ElliotGarbus/kivy-mobile-wheels")
 API = "https://api.github.com"
 
+# Projects that used to be published here and now ship mobile wheels on PyPI.
+# Their GitHub Releases stay (old lock files pin those URLs directly), but they
+# must not appear in the index or pip will keep preferring this copy.
+RETIRED = {"pyjnius"}
+
 
 def normalize(name: str) -> str:
     """PEP 503 normalized project name."""
@@ -104,6 +109,9 @@ def collect() -> dict[str, list[tuple[str, str]]]:
             name = asset["name"]
             project = project_of(name)
             if project is None:
+                continue
+            if normalize(project) in RETIRED:
+                print(f"  skipping {name}: {project} is on PyPI", file=sys.stderr)
                 continue
             # The API digest is "sha256:<hex>" when present.
             digest = (asset.get("digest") or "").removeprefix("sha256:")

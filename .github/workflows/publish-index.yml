@@ -49,8 +49,8 @@ jobs:
           <html><head><meta charset="utf-8"><title>kivy-mobile-wheels</title></head>
           <body>
           <h1>kivy-mobile-wheels</h1>
-          <p>A PEP 503 index of Android and iOS wheels for Kivy, pyjnius and
-          pyobjus, built for
+          <p>A PEP 503 index of Android and iOS wheels for Kivy and pyobjus,
+          built for
           <a href="https://github.com/ElliotGarbus/kivyforge">kivyforge</a>
           development.</p>
           <pre>extra_index_urls = ["https://elliotgarbus.github.io/kivy-mobile-wheels/simple/"]</pre>

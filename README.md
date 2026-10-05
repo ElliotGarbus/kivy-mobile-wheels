@@ -1,7 +1,7 @@
 # kivy-mobile-wheels
 
 Reproducible **Android** and **iOS** wheels for the packages that don't publish
-mobile wheels of their own — Kivy, pyjnius, pyobjus — built in CI, hosted on
+mobile wheels of their own — Kivy and pyobjus — built in CI, hosted on
 GitHub Releases, and served as a [PEP 503](https://peps.python.org/pep-0503/)
 index.
 
@@ -12,11 +12,14 @@ Built for [kivyforge](https://github.com/ElliotGarbus/kivyforge) development.
 Mobile wheels belong on PyPI, published by each project's own CI. Nothing here
 is a long-term home for anything.
 
-**Retirement condition:** when Kivy, pyjnius and pyobjus publish `android_*` /
-`ios_*` wheels to PyPI themselves, this repository is archived and consumers
-drop one line of configuration. Nothing else about their setup changes —
-which is the whole reason for serving a real index instead of passing files
-around.
+**Retirement condition:** when Kivy and pyobjus publish `android_*` / `ios_*`
+wheels to PyPI themselves, this repository is archived and consumers drop one
+line of configuration. Nothing else about their setup changes — which is the
+whole reason for serving a real index instead of passing files around.
+
+pyjnius already met that condition. Its Android wheels are on PyPI, so it is
+no longer built or indexed here. The recipe is kept under
+[`archive/pyjnius/`](archive/pyjnius/).
 
 Until then the alternative is loose `.whl` files on whichever laptop built
 them: no backup, no provenance, no way for a second machine to reproduce a
@@ -35,7 +38,7 @@ extra_index_urls = ["https://elliotgarbus.github.io/kivy-mobile-wheels/simple/"]
 recording `url` + `sha256` in the lock file. No `find_links`, no vendored
 binaries in your project.
 
-> The index carries the real package names (`kivy`, `pyjnius`, `pyobjus`). pip
+> The index carries the real package names (`kivy`, `pyobjus`). pip
 > resolves across all configured indexes and takes the highest version, which
 > is the intended behaviour here. At install time kivyforge is unaffected
 > either way — the lock pins exact URLs and hashes.
@@ -44,8 +47,8 @@ binaries in your project.
 
 | Platform | Kivy | Graphics | Bridge |
 |---|---|---|---|
-| Android | 2.3.1 | SDL2 (2.32.10, built from source) | pyjnius |
-| Android | 3.0 (pre-release) | SDL3 | pyjnius |
+| Android | 2.3.1 | SDL2 (2.32.10, built from source) | — (pyjnius is on PyPI) |
+| Android | 3.0 (pre-release) | SDL3 | — (pyjnius is on PyPI) |
 | iOS | 3.0 (pre-release) | SDL3 | pyobjus |
 
 **Kivy 2.3.1 on iOS is deliberately out of scope.** kivyforge supports Kivy 3+
@@ -60,7 +63,7 @@ Every input is pinned, and nothing resolves a branch at build time:
 
 - **Source tarballs** (SDL2 and satellites, Kivy 2.3.1) — versioned release or
   PyPI sdist, verified by recorded SHA-256.
-- **Git checkouts** (pyjnius, Kivy 3.0 pre-release, pyobjus) — exact commits in
+- **Git checkouts** (Kivy 3.0 pre-release, pyobjus) — exact commits in
   [`recipes/PINNED_REFS.toml`](recipes/PINNED_REFS.toml). Recipes read the
   commit from there and have no branch-name fallback; a missing pin fails the
   build rather than quietly floating. Kivy 3.0's upstream version is the
@@ -87,7 +90,7 @@ recipes/
   PINNED_REFS.toml          exact upstream commits (see above)
   lib/pins.sh               reads PINNED_REFS.toml; no branch-name fallback
   lib/stamp_kivy_version.py stamps Kivy 3.0 as 3.0.0.dev<YYYYMMDDHHMM>
-  android/                  SDL2/SDL3 + Kivy + pyjnius build scripts
+  android/                  SDL2/SDL3 + Kivy build scripts
     SDL3-FINDINGS.md        what the SDL3 investigation changed about the recipe
     lib/                    aar unwrapping, pre-cythonize, graft + wheel gates
     sdl-glue/               org/libsdl/app/*.java extracted from the SDL2 tarball
@@ -106,6 +109,7 @@ tools/
   watch_upstream.py         pin drift detection + PR body
   prune_dev_releases.py     delete superseded .dev releases
 index-gen/                  PEP 503 static index generator + its resolve gate
+archive/pyjnius/            retired pyjnius recipe (wheels now on PyPI)
 ```
 
 ### `recipes/android/sdl-glue/` and `sdl-glue-sdl3/`
@@ -139,7 +143,7 @@ releases, and republishes the index once. Manual one-offs still work through
 `refresh-kivy3` or the per-platform workflows. Dev releases older than the newest
 five per platform are pruned monthly.
 
-**Everything else** (Kivy 2.3.1, pyjnius, pyobjus) is still dispatched by hand
+**Everything else** (Kivy 2.3.1, pyobjus) is still dispatched by hand
 from the Actions tab — `build-android` / `build-ios`, with `publish` set —
 because those pins change rarely and carry "look before bumping" notes. From
 there each run is self-contained: it builds, gates, creates the GitHub Release,

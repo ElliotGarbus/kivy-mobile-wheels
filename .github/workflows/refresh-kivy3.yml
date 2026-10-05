@@ -6,8 +6,8 @@
 # once at the end.
 #
 # Scoped to the Kivy 3.0 / SDL3 targets on purpose. Kivy 2.3.1 builds from a
-# versioned sdist and pyjnius/pyobjus from pins that carry "re-check before
-# bumping" notes, so none of them wants a routine automatic rebuild.
+# versioned sdist and pyobjus from a pin that carries a "re-check before
+# bumping" note, so neither wants a routine automatic rebuild.
 #
 # Runs on a push to main that touches PINNED_REFS.toml — that is the merge of a
 # pin bump, whether a human wrote it or watch-upstream.yml opened the PR.
@@ -40,7 +40,7 @@ permissions:
 
 jobs:
   # Not every push that touches PINNED_REFS.toml changes the Kivy commit — it
-  # might bump pyjnius or just fix a note. Rebuilding then would produce the same
+  # might only fix a note. Rebuilding then would produce the same
   # version as the release already published, the append-only guard would refuse
   # the upload, and the run would go red for "nothing to do". A red X that means
   # success teaches people to ignore red X's, so the version is resolved up front

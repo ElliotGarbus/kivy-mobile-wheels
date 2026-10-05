@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# ARCHIVED. pyjnius publishes Android wheels on PyPI. See README.md in this
+# directory. Not invoked by CI; paths assume the old recipes/android/ location.
+#
 # Build the pyjnius Android wheel.
 #
 # Simpler than the Kivy recipe: pyjnius has no native dependency to build

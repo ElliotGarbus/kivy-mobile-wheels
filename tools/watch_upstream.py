@@ -17,9 +17,9 @@ branch as a pull request for a human to merge. The tedious half — finding the
 sha, editing two entries, working out what the new version will be and what
 changed upstream — is what gets automated.
 
-Only the two Kivy entries are watched. pyjnius is pinned to an unmerged fork and
-pyobjus to a commit that deliberately avoids an upstream PR; both notes say to
-re-check before bumping, and neither is something a schedule should touch.
+Only the two Kivy entries are watched. pyobjus is pinned to a commit that
+deliberately avoids an upstream PR; its note says to re-check before bumping,
+and that is not something a schedule should touch.
 
 Usage:
     watch_upstream.py                     report drift; change nothing
