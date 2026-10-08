@@ -130,6 +130,13 @@ if [[ ! -f "$TTF_SRC/external/freetype/CMakeLists.txt" ]]; then
   fi
 fi
 
+# HarfBuzz must stay ON. Without it SDL3_ttf decodes text with SDL_StepUTF8,
+# which in SDL 3.4.x (through 3.4.18) masks the second byte of a 4-byte
+# sequence with 0x1F instead of 0x3F: any codepoint with bit 17 set decodes
+# wrongly, e.g. U+F02BE becomes U+D02BE. That blanks every icon font in the
+# U+F0000 private-use plane (KivyMD's Material Design Icons) and CJK
+# Extension B onward. HarfBuzz decodes UTF-8 itself, and is what p4a builds.
+# Upstream: libsdl-org/SDL#16464.
 echo "==> building SDL3_ttf $SDL3_TTF_VERSION from source ($ABI)"
 TTF_BUILD="$BUILD/SDL3_ttf-$ABI"
 rm -rf "$TTF_BUILD"
@@ -150,7 +157,7 @@ cmake -S "$TTF_SRC" -B "$TTF_BUILD" -G Ninja \
   -DSDL3_DIR="$PREFIX/lib/cmake/SDL3" \
   -DSDLTTF_VENDORED=ON \
   -DSDLTTF_SAMPLES=OFF \
-  -DSDLTTF_HARFBUZZ=OFF
+  -DSDLTTF_HARFBUZZ=ON
 cmake --build "$TTF_BUILD" --parallel
 cmake --install "$TTF_BUILD"
 

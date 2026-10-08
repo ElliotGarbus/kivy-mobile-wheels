@@ -148,10 +148,41 @@ enforces the same version-matching contract as SDL2 — mismatch aborts
 the same verified `.aar` that provides `libSDL3.so` makes that mismatch
 impossible by construction, exactly as `sdl-glue/` does for SDL2.
 
+## 5. **SDL3_ttf must be built with HarfBuzz — without it, icon fonts render blank**
+
+Found from [kivyforge#96](https://github.com/ElliotGarbus/kivyforge/issues/96):
+KivyMD's Material Design Icons drew nothing under Kivy 3 from this index,
+while Kivy 2.3.1 (SDL2) from this index and p4a's Kivy master both drew them.
+Reproduced on an API-35 arm64 emulator on 2026-10-08, by calling the shipped
+`libSDL3_ttf.so` directly through ctypes, with Kivy out of the path:
+
+| Call, MDI font at 64 pt | HarfBuzz OFF | HarfBuzz ON |
+|---|---|---|
+| `TTF_FontHasGlyph(U+F02BE)` | true | true |
+| `TTF_GetGlyphMetrics(U+F02BE)` advance | 64 | 64 |
+| `TTF_GetStringSize("\U000F02BE")` width | **0** | 64 |
+| `SDL_StepUTF8` on its UTF-8 bytes | **U+D02BE** | — |
+
+Without HarfBuzz, SDL3_ttf walks the text with SDL3's `SDL_StepUTF8`, whose
+4-byte branch masks the second byte with `0x1F` rather than `0x3F`
+(`src/stdlib/SDL_string.c`; still so in 3.4.18 and on `main` as of
+2026-10-07). Every codepoint with bit 17 set decodes to a different one:
+U+20000–3FFFF (CJK Extension B onward), U+60000–7FFFF, U+A0000–BFFFF and
+U+E0000–FFFFF, which holds the private-use plane icon fonts live in. Plane 1
+(emoji, maths alphanumerics) and the BMP are unaffected, which is why ordinary
+text never showed it. SDL2_ttf has its own decoder, so the SDL2 line is fine.
+
+HarfBuzz decodes UTF-8 itself, and p4a builds SDL3_ttf with it, so the
+recipe now does too. Cost: libSDL3_ttf.so grows from 1.0 MB to 1.9 MB
+stripped (arm64-v8a); HarfBuzz is linked statically, so no new `DT_NEEDED`.
+Turning it back off needs an SDL release that fixes `SDL_StepUTF8` first —
+reported upstream as [libsdl-org/SDL#16464](https://github.com/libsdl-org/SDL/issues/16464).
+
 ## Consequences for the recipe
 
 1. Fetch four zips, verify by SHA-256, unwrap zip → aar → prefab.
-2. Build **SDL3_ttf from source** for both ABIs with the page-size flag.
+2. Build **SDL3_ttf from source** for both ABIs with the page-size flag,
+   and with HarfBuzz (§5).
 3. Assemble `<kivy-src>/dist/{libs/<abi>,include}` before invoking cibuildwheel.
 4. Verify 16 KB alignment across all four **after** assembly — the check is
    what caught this, and it has to run on whatever is actually shipped.
