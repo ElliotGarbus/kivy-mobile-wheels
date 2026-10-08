@@ -74,11 +74,15 @@ HarfBuzz, which fixes blank icon-font glyphs (kivyforge#96,
 SDL3-FINDINGS.md §5). The recipe change alone would have rebuilt the same
 version, which the append-only guard rightly refuses.
 
-**Not yet validated at this pin.** 71407bc was validated on 2026-07-31 on
-both ABIs (x86_64 API-36 emulator, arm64_v8a Pixel 8a): the app renders and
-kivy.mobile.get_safe_area() returns real insets. Insets arrive in **pixels**
-on Android (UIKit points on iOS), although kivy/mobile/__init__.py documents
-"layout points" for both without the per-platform caveat.
+**Validated at this pin (2026-10-08), arm64_v8a only**, on an API-35 arm64
+emulator with the wheels from build-android run 37766763368 (publish off):
+the #96 reproducer draws both Material Design Icons glyphs, and
+android-safe-area renders its text and reports real insets. x86_64 built
+and passed CI's static gates but was not launched (Apple Silicon host).
+71407bc was validated on 2026-07-31 on both ABIs (x86_64 API-36 emulator,
+arm64_v8a Pixel 8a). Insets arrive in **pixels** on Android (UIKit points
+on iOS), although kivy/mobile/__init__.py documents "layout points" for
+both without the per-platform caveat.
 
 Its setup.py resolves Android SDL3 from <cwd>/dist/libs/<abi> and
 <cwd>/dist/include, using os.getcwd() rather than KIVY_DEPS_ROOT, so the
