@@ -28,8 +28,8 @@
 # The commit built is read from PINNED_REFS.toml's [ios.kivy] — there is no
 # branch-name fallback; a missing pin fails the build.
 #
-# Prerequisites: macOS, Xcode, network. Host Python 3.x with pip.
-# Python 3.15 iOS wheels require cibuildwheel's cpython-prerelease enablement.
+# Prerequisites: macOS, Xcode, network. Host Python 3.x with pip, and the
+# CPython 3.15.0 macOS framework installed (the script checks and says how).
 
 set -euo pipefail
 
@@ -43,25 +43,26 @@ IOS_DEPLOYMENT_TARGET="${IOS_DEPLOYMENT_TARGET:-16.0}"
 
 mkdir -p "$OUTPUT_DIR" "$BUILD_ROOT"
 
-CPYTHON_PKG_ID="org.python.Python.PythonFramework-3.15"
+CPYTHON_VERSION="3.15.0"
 CPYTHON_FRAMEWORK="/Library/Frameworks/Python.framework/Versions/3.15"
-CPYTHON_PKG_URL="https://www.python.org/ftp/python/3.15.0/python-3.15.0b4-macos11.pkg"
-CPYTHON_PKG_CACHE="${BUILD_ROOT}/python-3.15.0b4-macos11.pkg"
+CPYTHON_PKG_URL="https://www.python.org/ftp/python/$CPYTHON_VERSION/python-$CPYTHON_VERSION-macos11.pkg"
+CPYTHON_PKG_CACHE="${BUILD_ROOT}/python-$CPYTHON_VERSION-macos11.pkg"
 
-if ! pkgutil --pkgs 2>/dev/null | grep -qx "$CPYTHON_PKG_ID"; then
-  if [[ ! -d "$CPYTHON_FRAMEWORK" ]]; then
-    echo "CPython 3.15 macOS framework is required to cross-build iOS wheels."
-    echo "cibuildwheel refuses to sudo-install outside CI."
-    if [[ ! -f "$CPYTHON_PKG_CACHE" ]]; then
-      echo "Downloading installer to $CPYTHON_PKG_CACHE ..."
-      curl -fsSL -o "$CPYTHON_PKG_CACHE" "$CPYTHON_PKG_URL"
-    fi
-    echo ""
-    echo "Install once, then re-run this script:"
-    echo "  sudo installer -pkg \"$CPYTHON_PKG_CACHE\" -target /"
-    echo ""
-    exit 1
+# A pre-release framework left over from an earlier build satisfies "3.15 is
+# installed" while not being the release these wheels claim to be built on.
+installed="$("$CPYTHON_FRAMEWORK/bin/python3.15" -c 'import platform; print(platform.python_version())' 2>/dev/null || true)"
+if [[ "$installed" != "$CPYTHON_VERSION" ]]; then
+  echo "CPython $CPYTHON_VERSION macOS framework is required to cross-build iOS wheels"
+  echo "(found: ${installed:-none}). cibuildwheel refuses to sudo-install outside CI."
+  if [[ ! -f "$CPYTHON_PKG_CACHE" ]]; then
+    echo "Downloading installer to $CPYTHON_PKG_CACHE ..."
+    curl -fsSL -o "$CPYTHON_PKG_CACHE" "$CPYTHON_PKG_URL"
   fi
+  echo ""
+  echo "Install once, then re-run this script:"
+  echo "  sudo installer -pkg \"$CPYTHON_PKG_CACHE\" -target /"
+  echo ""
+  exit 1
 fi
 
 if ! xcrun -find metal >/dev/null 2>&1; then
@@ -79,8 +80,9 @@ python3 "$ROOT/recipes/lib/stamp_kivy_version.py" "$KIVY_SRC"
 
 echo "Installing cibuildwheel build deps ..."
 python3 -m pip install -q -r "$KIVY_SRC/.ci/cicd-requirements.txt"
-# Kivy's pin (~=3.4) predates cp315 iOS; 4.0rc+ is required for Python 3.15 wheels.
-python3 -m pip install -q 'cibuildwheel>=4.0.0rc2'
+# Kivy's pin (~=3.4) predates cp315 iOS. This exact version is what selects the
+# CPython iOS framework the wheels link against (4.3.1+ bundles 3.15.0 final).
+python3 -m pip install -q 'cibuildwheel==4.3.4'
 python3 -m pip install -q meson ninja
 
 pushd "$KIVY_SRC" >/dev/null
@@ -98,7 +100,6 @@ export KIVY_DEPS_ROOT="$(pwd)/ios-kivy-dependencies"
 export KIVY_SPLIT_EXAMPLES=1
 export CIBW_PLATFORM=ios
 export CIBW_ARCHS="arm64_iphoneos arm64_iphonesimulator x86_64_iphonesimulator"
-export CIBW_ENABLE=cpython-prerelease
 export CIBW_BUILD="cp315-*"
 # Kivy's SDL3/ANGLE/ThorVG xcframeworks target iOS 16+, so the extensions have
 # to be linked for 16.0 too. cibuildwheel passes IPHONEOS_DEPLOYMENT_TARGET

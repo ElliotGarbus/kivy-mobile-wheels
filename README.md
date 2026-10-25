@@ -71,6 +71,9 @@ Every input is pinned, and nothing resolves a branch at build time:
   literal `3.0.0.dev0` on every commit, so the recipes stamp it to
   `3.0.0.dev<YYYYMMDDHHMM>` from the commit date before building — see
   [`recipes/lib/stamp_kivy_version.py`](recipes/lib/stamp_kivy_version.py).
+  pyobjus pinned past a tag still declares that tag's version, so it is
+  stamped `<next micro>.dev<YYYYMMDDHHMM>` the same way —
+  [`recipes/lib/stamp_pyobjus_version.py`](recipes/lib/stamp_pyobjus_version.py).
 
 Each release records the pins it was built from, and the run that produced it.
 
@@ -91,6 +94,7 @@ recipes/
   PINNED_REFS.toml          exact upstream commits (see above)
   lib/pins.sh               reads PINNED_REFS.toml; no branch-name fallback
   lib/stamp_kivy_version.py stamps Kivy 3.0 as 3.0.0.dev<YYYYMMDDHHMM>
+  lib/stamp_pyobjus_version.py stamps untagged pyobjus as X.Y.Z+1.dev<...>
   android/                  SDL2/SDL3 + Kivy build scripts
     SDL3-FINDINGS.md        what the SDL3 investigation changed about the recipe
     lib/                    aar unwrapping, pre-cythonize, graft + wheel gates
