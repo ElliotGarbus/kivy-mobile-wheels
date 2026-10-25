@@ -10,7 +10,11 @@ Both were ported from kivyforge's `scripts/build_ios_wheels.sh` and
 `examples/mobile/hello-kivy` first ran on the simulator.
 
 Slices: `arm64_iphoneos`, `arm64_iphonesimulator`, `x86_64_iphonesimulator`.
-`cp315-*` only. `IPHONEOS_DEPLOYMENT_TARGET=16.0`.
+`cp315-*` only, built on CPython 3.15.0 final: the macOS framework is
+`CPYTHON_VERSION` in the recipes and `build-ios.yml`, and the iOS framework is
+whatever the pinned cibuildwheel (4.3.4) bundles. Bump them together.
+Releases before `kivy-ios-3.0.0.dev202610251128` and `pyobjus-ios-1.2.5.dev*`
+were built on 3.15.0b4. `IPHONEOS_DEPLOYMENT_TARGET=16.0`.
 
 **Requires macOS + Xcode.** cibuildwheel's iOS target has no Linux path — which
 is also why `kivyforge lock -p ios` cannot run on a Windows host, so re-locking a
@@ -86,6 +90,11 @@ missing; preserve that in CI if the runner has a usable cache.
 
 Only native dependency is libffi, built by pyobjus's own
 `.ci/build_ios_dependencies.sh` into `ios-deps-install/`.
+
+Pinned to master past `v1.2.4`, where upstream still declares `1.2.4`. The
+recipe runs [`../lib/stamp_pyobjus_version.py`](../lib/stamp_pyobjus_version.py)
+so it publishes as `1.2.5.devYYYYMMDDHHMM` instead of colliding with the
+released `1.2.4`. Consumers need `pyobjus>=1.2.5.dev0` to select it.
 
 **pyobjus has no iOS CI upstream**, so this path is not upstream-validated —
 its CI run here is its real test, not a formality. `setup.py` gates the

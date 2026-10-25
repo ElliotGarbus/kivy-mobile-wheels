@@ -34,9 +34,9 @@ placeholders, which exist for exactly this and which ``kivy/__init__.py`` prints
 at startup. A running app then says ``Kivy: v3.0.0.dev202606221936, git-a933f85,
 ...``, which is otherwise impossible to recover from a device.
 
-Only Kivy is stamped. pyobjus is pinned to a commit too, but it changes rarely
-and its note demands a human look before any bump, so there is no version
-collision to solve and nothing here should touch it.
+pyobjus has the same collision when pinned past a tag and is stamped by
+``stamp_pyobjus_version.py``. Its pin is bumped by hand rather than predicted,
+so it needs neither ``--predict`` nor the pin-agreement check here.
 
 Usage:
     stamp_kivy_version.py <kivy-src>    patch a checkout in place; print version

@@ -61,6 +61,8 @@ permissions:
 
 env:
   IOS_DEPLOYMENT_TARGET: "16.0"
+  # Must match CPYTHON_VERSION in recipes/ios/*.sh, which refuse any other.
+  CPYTHON_VERSION: "3.15.0"
 
 jobs:
   build:
@@ -84,16 +86,12 @@ jobs:
       # cibuildwheel drives the iOS cross-build with the CPython macOS
       # framework and refuses to sudo-install it itself. The local scripts
       # stop and ask the user to do it; CI installs it non-interactively.
-      - name: Install CPython 3.15 macOS framework
+      - name: Install CPython ${{ env.CPYTHON_VERSION }} macOS framework
         run: |
-          PKG_ID="org.python.Python.PythonFramework-3.15"
-          if pkgutil --pkgs 2>/dev/null | grep -qx "$PKG_ID"; then
-            echo "Already installed."
-            exit 0
-          fi
-          URL="https://www.python.org/ftp/python/3.15.0/python-3.15.0b4-macos11.pkg"
-          curl -fsSL -o /tmp/python-3.15.0b4-macos11.pkg "$URL"
-          sudo installer -pkg /tmp/python-3.15.0b4-macos11.pkg -target /
+          PKG="python-$CPYTHON_VERSION-macos11.pkg"
+          curl -fsSL -o "/tmp/$PKG" "https://www.python.org/ftp/python/$CPYTHON_VERSION/$PKG"
+          sudo installer -pkg "/tmp/$PKG" -target /
+          /Library/Frameworks/Python.framework/Versions/3.15/bin/python3.15 -VV
 
       - name: Run recipe
         run: bash recipes/ios/${{ inputs.target }}.sh dist/ios

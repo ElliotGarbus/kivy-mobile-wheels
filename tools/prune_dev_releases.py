@@ -10,7 +10,8 @@ disturbing the old one. The cost is that releases accumulate for as long as Kivy
 stop resolving.** That is the trade being made: dev builds are not promised to
 last forever, and anything that needs to keep working should be re-locked onto a
 newer build or have its wheels vendored. Releases outside a dev line — Kivy 2.3.1
-and pyobjus — are never touched, because those *are* promised. pyjnius releases
+and pyobjus 1.2.4 — are never touched, because those *are* promised. pyobjus
+dev builds (recipes/lib/stamp_pyobjus_version.py) are pruned like Kivy's. pyjnius releases
 are also left alone: the project is off the index, but old lock files still
 point at those assets.
 

@@ -13,7 +13,7 @@
 # stronger pin than a git commit. That covers Android SDL2 (2.32.10 and its
 # three satellites) and Kivy 2.3.1.
 #
-# Resolved 2026-07-26 via `git ls-remote <repo> <ref>`.
+# Resolved 2026-10-25 via `git ls-remote <repo> <ref>`.
 #
 # pyjnius used to be pinned here. It now publishes Android wheels on PyPI, so
 # the pin and recipe live under archive/pyjnius/ and are not built or indexed.
@@ -21,15 +21,18 @@
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "56baa54cbaf14697c0543e1806a98d52e1c54bb2"
+commit = "27e458af2c95196a0c292f246b4b18b4067af230"
 note = """
-Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-10-05.
+Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-10-25.
 
-**iOS is not yet simulator- or device-validated at this pin.** It moved in
-step with [android.kivy] (same commit, same stamped version) for an
-Android-only fix — SDL3_ttf with HarfBuzz, SDL3-FINDINGS.md §5 — which
-needed a new version to publish under. The iOS SDL3_ttf already had
-HarfBuzz. The last simulator-validated pin is the 2026-06-22 commit.
+Bumped from 56baa54 (2026-10-05) when CPython 3.15.0 final was released, so
+the iOS wheels are rebuilt on it (the previous ones were built on 3.15.0b4,
+which predates the ABI freeze). Picks up kivy#9441 — iOS keyboard height and
+safe area reported in layout pixels — and kivy#9440, the SDL3
+Window.screenshot() segfault.
+
+**iOS is not yet simulator- or device-validated at this pin.** The last
+simulator-validated pin is the 2026-06-22 commit.
 
 Deliberately NOT floating on master. Each bump is a reviewed change to this
 file (watch-upstream.yml opens the PR; a human merges it). Recipes stamp the
@@ -44,14 +47,23 @@ release tarball + SHA-256 is a stronger pin than a commit.
 [ios.pyobjus]
 repo = "https://github.com/kivy/pyobjus"
 ref = "master"
-commit = "0c229e75248c14652b6764db5730eeb30bab95ed"
+commit = "15c58cb3ee5cad5c1f4e78ecf3b825494c941408"
 note = """
-As above: the commit that actually built the vendored pyobjus iOS wheels,
-recovered from the cached checkout, dated 2025-12-29. Not master HEAD.
+master HEAD on 2026-10-25, 24 commits past v1.2.4 (0c229e7, the previous
+pin). Bumped when CPython 3.15.0 final was released, to rebuild on it and to
+pick up the iOS fixes since the tag: frameworks loaded with dlopen on iOS
+(#158), struct by-value heap overrun (#157), nested-struct make_type (#163),
+and str selector names in autoclass (#159).
 
-master deliberately avoids upstream PR #105 (Obj-C protocol loading rework),
-which is flagged "DO NOT MERGE YET". Re-check that this is still true before
-ever bumping this pin.
+Upstream still declares 1.2.4 here, so the recipe stamps it
+1.2.5.dev<YYYYMMDDHHMM> from the commit date — see
+recipes/lib/stamp_pyobjus_version.py. A dev version is only selected by a
+requirement that opts in, e.g. pyobjus>=1.2.5.dev0. Pin a tag again, and
+the stamp steps aside, once upstream releases 1.2.5.
+
+Upstream PR #105 (Obj-C protocol loading rework, flagged "DO NOT MERGE
+YET") was still open and unmerged at this commit. Re-check that before
+bumping again.
 
 pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 """
@@ -62,14 +74,18 @@ pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 [android.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "56baa54cbaf14697c0543e1806a98d52e1c54bb2"
+commit = "27e458af2c95196a0c292f246b4b18b4067af230"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
 rewrites both commit lines together; do not split them without also changing
 how stamp_kivy_version.py predicts the release tag.
 
-Bumped from 71407bc (2026-07-30) together with building SDL3_ttf with
+**Not yet validated at 27e458a (2026-10-25).** Bumped together with
+[ios.kivy] for the CPython 3.15.0 final rebuild of the iOS wheels. The
+validation below is for 56baa54.
+
+56baa54 was bumped from 71407bc (2026-07-30) together with building SDL3_ttf with
 HarfBuzz, which fixes blank icon-font glyphs (kivyforge#96,
 SDL3-FINDINGS.md §5). The recipe change alone would have rebuilt the same
 version, which the append-only guard rightly refuses.
