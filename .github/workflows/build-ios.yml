@@ -66,11 +66,14 @@ env:
 
 jobs:
   build:
-    runs-on: macos-14
+    # Pinned rather than macos-latest so the Xcode major only changes in a
+    # reviewed commit. GitHub cancels jobs on a retired image within a second,
+    # with no steps run; that is what a macos-14 job did after 2026-11-02.
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v7
 
-      # macos-14's system python3 is Homebrew-managed (PEP 668) and refuses
+      # The runner's system python3 is Homebrew-managed (PEP 668) and refuses
       # bare `pip install`. The recipes need an unmanaged host Python to drive
       # cibuildwheel with — this is the *host* interpreter, unrelated to the
       # cp315 iOS target the recipes cross-build.
