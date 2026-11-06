@@ -28,7 +28,15 @@ consumer after an iOS rebuild has to happen on a Mac.
 
 ## Traps already paid for — do not rediscover these
 
-**`macos-14`'s system `python3` is Homebrew-managed (PEP 668).** A bare
+**A retired runner image cancels the job, it does not fail it.** `macos-14`
+was retired on 2026-11-02, and from then on `build-ios` was cancelled about a
+second after queueing, with no steps and no log. The only explanation was the
+job's annotation, `The configuration 'macos-14-arm64-us-default' is not
+supported`. `build-ios.yml` now pins `macos-15` (Xcode 16). Watch
+[actions/runner-images](https://github.com/actions/runner-images) for its
+retirement.
+
+**The macOS runners' system `python3` is Homebrew-managed (PEP 668).** A bare
 `pip install cibuildwheel` fails there with `error:
 externally-managed-environment` — this doesn't show up on a normal dev Mac,
 only on GitHub-hosted runners. `actions/setup-python` before running the recipe
