@@ -13,7 +13,7 @@
 # stronger pin than a git commit. That covers Android SDL2 (2.32.10 and its
 # three satellites) and Kivy 2.3.1.
 #
-# Resolved 2026-10-25 via `git ls-remote <repo> <ref>`.
+# Resolved 2026-11-06 via `git ls-remote <repo> <ref>`.
 #
 # pyjnius used to be pinned here. It now publishes Android wheels on PyPI, so
 # the pin and recipe live under archive/pyjnius/ and are not built or indexed.
@@ -21,15 +21,16 @@
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "27e458af2c95196a0c292f246b4b18b4067af230"
+commit = "c703f5fb42c4bd28cb6652e3a82de989e3c3f0f7"
 note = """
-Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-10-25.
+Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-11-05.
 
-Bumped from 56baa54 (2026-10-05) when CPython 3.15.0 final was released, so
-the iOS wheels are rebuilt on it (the previous ones were built on 3.15.0b4,
-which predates the ABI freeze). Picks up kivy#9441 — iOS keyboard height and
-safe area reported in layout pixels — and kivy#9440, the SDL3
-Window.screenshot() segfault.
+Bumped from 27e458a (2026-10-25), 15 commits, to pick up kivy#9443 (iOS
+never reports a screen scale of 0 before the window exists), kivy#9444
+(iPad floating keyboard), kivy#9484 (stale __slots__ removed from
+LabelBase), kivy#9471 (ThorVG deployment target) and kivy#9467 (asyncio
+examples on Python 3.14). 27e458a was the first pin built on CPython 3.15.0
+final.
 
 **iOS is not yet simulator- or device-validated at this pin.** The last
 simulator-validated pin is the 2026-06-22 commit.
@@ -74,16 +75,16 @@ pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 [android.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "27e458af2c95196a0c292f246b4b18b4067af230"
+commit = "c703f5fb42c4bd28cb6652e3a82de989e3c3f0f7"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
 rewrites both commit lines together; do not split them without also changing
 how stamp_kivy_version.py predicts the release tag.
 
-**Not yet validated at 27e458a (2026-10-25).** Bumped together with
-[ios.kivy] for the CPython 3.15.0 final rebuild of the iOS wheels. The
-validation below is for 56baa54.
+**Not yet validated at c703f5f (2026-11-05)** or at 27e458a (2026-10-25)
+before it; see [ios.kivy] for what the bump picks up. The validation below
+is for 56baa54.
 
 56baa54 was bumped from 71407bc (2026-07-30) together with building SDL3_ttf with
 HarfBuzz, which fixes blank icon-font glyphs (kivyforge#96,
