@@ -21,11 +21,17 @@
 [ios.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "c703f5fb42c4bd28cb6652e3a82de989e3c3f0f7"
+commit = "0f23a55ccc59a55d2e726d079fedcca03c5ca068"
 note = """
-Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-11-05.
+Kivy 3.0 pre-release; unreleased, so pinned by commit. Dated 2026-11-07.
 
-Bumped from 27e458a (2026-10-25), 15 commits, to pick up kivy#9443 (iOS
+Bumped from c703f5f (2026-11-05), 1 commit, to pick up kivy#9491: iOS (and
+macOS) SDL3 3.4.12 -> 3.4.20, which fixes rotation on iOS 27. The iOS recipe
+builds SDL3 through Kivy's own tools/build_ios_dependencies.sh, so this bump
+is what moves the iOS wheel's SDL3; Android's SDL3 is pinned separately in
+recipes/android/sdl3.sh and is unaffected.
+
+c703f5f was bumped from 27e458a (2026-10-25), 15 commits, to pick up kivy#9443 (iOS
 never reports a screen scale of 0 before the window exists), kivy#9444
 (iPad floating keyboard), kivy#9484 (stale __slots__ removed from
 LabelBase), kivy#9471 (ThorVG deployment target) and kivy#9467 (asyncio
@@ -75,15 +81,17 @@ pyobjus has no iOS CI upstream, so this build path is not upstream-validated.
 [android.kivy]
 repo = "https://github.com/kivy/kivy"
 ref = "master"
-commit = "c703f5fb42c4bd28cb6652e3a82de989e3c3f0f7"
+commit = "0f23a55ccc59a55d2e726d079fedcca03c5ca068"
 note = """
 Kivy 3.0 pre-release; unreleased, so pinned by commit. Kept in step with
 [ios.kivy] deliberately — same tree, same stamped version. watch-upstream.yml
 rewrites both commit lines together; do not split them without also changing
 how stamp_kivy_version.py predicts the release tag.
 
-**Not yet validated at c703f5f (2026-11-05)** or at 27e458a (2026-10-25)
-before it; see [ios.kivy] for what the bump picks up. The validation below
+**Not yet validated at 0f23a55 (2026-11-07)**, c703f5f (2026-11-05) or
+27e458a (2026-10-25); see [ios.kivy] for what each bump picks up. 0f23a55
+changes only iOS/macOS SDL3, so the Android build at this pin is a rebuild
+with no functional change. The validation below
 is for 56baa54.
 
 56baa54 was bumped from 71407bc (2026-07-30) together with building SDL3_ttf with
