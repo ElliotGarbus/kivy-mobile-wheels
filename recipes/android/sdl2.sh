@@ -103,6 +103,11 @@ common_args=(
   -DCMAKE_SHARED_LINKER_FLAGS="$PAGE_FLAGS"
   -DCMAKE_MODULE_LINKER_FLAGS="$PAGE_FLAGS"
   -DCMAKE_EXE_LINKER_FLAGS="$PAGE_FLAGS"
+  # CMake 4 (ubuntu-latest since mid-2026) refuses any project declaring
+  # cmake_minimum_required(VERSION <3.5), and the FreeType vendored in the
+  # pinned SDL2_ttf tarball does. This is CMake's own documented escape hatch;
+  # older CMake ignores the variable.
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 )
 
 satellite_args=(
