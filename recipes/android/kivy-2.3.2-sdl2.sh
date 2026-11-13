@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Build the Kivy 2.3.1 Android wheel against the SDL2 line from sdl2.sh.
+# Build the Kivy 2.3.2 Android wheel against the SDL2 line from sdl2.sh.
 #
 # Run recipes/android/sdl2.sh for the same ABI first — this consumes its
 # prefix, and grafts its four libraries into the wheel.
 #
 # Usage:
-#   recipes/android/kivy-2.3.1-sdl2.sh <abi> [outdir]
+#   recipes/android/kivy-2.3.2-sdl2.sh <abi> [outdir]
 #
 # Requires: ANDROID_NDK_HOME (r27), a host python with pip, and
 # /system/bin/sh (see the note below).
@@ -15,7 +15,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 
-ABI="${1:?usage: kivy-2.3.1-sdl2.sh <abi> [outdir]   (arm64-v8a | x86_64)}"
+ABI="${1:?usage: kivy-2.3.2-sdl2.sh <abi> [outdir]   (arm64-v8a | x86_64)}"
 BUILD_ROOT="${2:-$REPO_ROOT/.build/android}"
 
 case "$ABI" in
@@ -26,8 +26,8 @@ esac
 
 : "${ANDROID_NDK_HOME:?set ANDROID_NDK_HOME to the r27 NDK}"
 
-KIVY_VERSION="2.3.1"
-KIVY_SDIST_SHA256="0833949e3502cdb4abcf9c1da4384674045ad7d85644313aa1ee7573f3b4f9d9"
+KIVY_VERSION="2.3.2"
+KIVY_SDIST_SHA256="87361cd3bef48207959f4e90a09b16751f29649fae85eb16895e7c5bfe013a8c"
 
 SRC="$BUILD_ROOT/src"
 PREFIX="$BUILD_ROOT/prefix/$ABI"

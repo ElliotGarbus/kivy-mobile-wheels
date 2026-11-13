@@ -48,13 +48,16 @@ binaries in your project. Each wheel's metadata is published beside it
 
 | Platform | Kivy | Graphics | Bridge |
 |---|---|---|---|
-| Android | 2.3.1 | SDL2 (2.32.10, built from source) | — (pyjnius is on PyPI) |
+| Android | 2.3.2 | SDL2 (2.32.10, built from source) | — (pyjnius is on PyPI) |
 | Android | 3.0 (pre-release) | SDL3 | — (pyjnius is on PyPI) |
 | iOS | 3.0 (pre-release) | SDL3 | pyobjus |
 
-**Kivy 2.3.1 on iOS is deliberately out of scope.** kivyforge supports Kivy 3+
+The Kivy 2.3.1 Android release built before the 2.3.2 bump stays published and
+indexed, so lock files that pin it keep resolving.
+
+**Kivy 2.x on iOS is deliberately out of scope.** kivyforge supports Kivy 3+
 only on iOS, and [kivy-ios](https://github.com/kivy/kivy-ios) already serves
-2.x there — so there is no gap to fill. Kivy 2.3.1's iOS build also targets
+2.x there — so there is no gap to fill. Kivy 2.3's iOS build also targets
 `OpenGLES.framework`, deprecated by Apple in 2018; Kivy 3.0 routes GLES through
 ANGLE over Metal instead.
 
@@ -62,7 +65,7 @@ ANGLE over Metal instead.
 
 Every input is pinned, and nothing resolves a branch at build time:
 
-- **Source tarballs** (SDL2 and satellites, Kivy 2.3.1) — versioned release or
+- **Source tarballs** (SDL2 and satellites, Kivy 2.3.2) — versioned release or
   PyPI sdist, verified by recorded SHA-256.
 - **Git checkouts** (Kivy 3.0 pre-release, pyobjus) — exact commits in
   [`recipes/PINNED_REFS.toml`](recipes/PINNED_REFS.toml). Recipes read the
@@ -130,7 +133,7 @@ called, and no Python runs. Both SDL generations enforce this.
 So the glue is extracted from the same verified artifact that builds the
 library — the tarball for SDL2, the `.aar` for SDL3 — committed alongside it,
 and checked in CI. The SDL2 glue carries one Java-only patch, applied by
-`sdl2.sh` during extraction, so Kivy 2.3.1 can set the soft keyboard's type
+`sdl2.sh` during extraction, so Kivy 2.3 can set the soft keyboard's type
 (`recipes/android/sdl-glue-patches/README.md`). It is not published as a
 release asset: nobody `pip install`s a `.java` file, and a second copy on the
 distribution path is one more thing that can drift.
@@ -149,7 +152,7 @@ releases, and republishes the index once. Manual one-offs still work through
 `refresh-kivy3` or the per-platform workflows. Dev releases older than the newest
 five per platform are pruned monthly.
 
-**Everything else** (Kivy 2.3.1, pyobjus) is still dispatched by hand
+**Everything else** (Kivy 2.3.x, pyobjus) is still dispatched by hand
 from the Actions tab — `build-android` / `build-ios`, with `publish` set —
 because those pins change rarely and carry "look before bumping" notes. From
 there each run is self-contained: it builds, gates, creates the GitHub Release,
