@@ -16,7 +16,7 @@ on:
         description: Which recipe to build
         required: true
         type: choice
-        options: [sdl2, sdl3, kivy-2.3.1-sdl2, kivy-3.0-sdl3]
+        options: [sdl2, sdl3, kivy-2.3.2-sdl2, kivy-3.0-sdl3]
       publish:
         description: Publish a release from the built wheels and update the index
         required: false
@@ -108,7 +108,7 @@ jobs:
       # here, in the same job. (The recipe checks for it and fails with that
       # instruction rather than a confusing compile error.)
       - name: Build SDL2 first
-        if: inputs.target == 'kivy-2.3.1-sdl2'
+        if: inputs.target == 'kivy-2.3.2-sdl2'
         run: bash recipes/android/sdl2.sh ${{ matrix.abi }}
 
       - name: Assemble SDL3 first
@@ -132,7 +132,7 @@ jobs:
       # ones that build their SDL line as a dependency.
       - name: SDL glue matches the committed copy
         if: >-
-          inputs.target == 'sdl2' || inputs.target == 'kivy-2.3.1-sdl2' ||
+          inputs.target == 'sdl2' || inputs.target == 'kivy-2.3.2-sdl2' ||
           inputs.target == 'sdl3' || inputs.target == 'kivy-3.0-sdl3'
         run: |
           changes="$(git status --porcelain -- recipes/android/sdl-glue recipes/android/sdl-glue-sdl3)"
@@ -196,7 +196,7 @@ jobs:
           project="$(echo "$wheel" | cut -d- -f1 | tr '[:upper:]' '[:lower:]')"
           version="$(echo "$wheel" | cut -d- -f2)"
           case "${{ inputs.target }}" in
-            kivy-2.3.1-sdl2) title="Kivy $version — Android (SDL2)" ;;
+            kivy-2.3.2-sdl2) title="Kivy $version — Android (SDL2)" ;;
             kivy-3.0-sdl3)   title="Kivy $version — Android (SDL3)" ;;
             *)               title="$project $version — Android" ;;
           esac

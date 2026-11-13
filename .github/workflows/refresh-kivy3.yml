@@ -5,7 +5,7 @@
 # from the pinned commit, publishes a release for each, and republishes the index
 # once at the end.
 #
-# Scoped to the Kivy 3.0 / SDL3 targets on purpose. Kivy 2.3.1 builds from a
+# Scoped to the Kivy 3.0 / SDL3 targets on purpose. Kivy 2.3.2 builds from a
 # versioned sdist and pyobjus from a pin that carries a "re-check before
 # bumping" note, so neither wants a routine automatic rebuild.
 #

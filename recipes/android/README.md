@@ -3,7 +3,7 @@
 | Script | Builds | Pinned by | Status |
 |---|---|---|---|
 | `sdl2.sh` | SDL2 2.32.10 + image/mixer/ttf, per ABI | source tarball SHA-256 | **ported** |
-| `kivy-2.3.1-sdl2.sh` | Kivy 2.3.1 against the above | PyPI sdist SHA-256 | **ported, published** |
+| `kivy-2.3.2-sdl2.sh` | Kivy 2.3.2 against the above | PyPI sdist SHA-256 | **ported, published** |
 | `sdl3.sh` | SDL3 family, per ABI | release SHA-256 (ttf from source) | **ported** |
 | `kivy-3.0-sdl3.sh` | Kivy 3.0 against SDL3 | `PINNED_REFS.toml` (stamped `3.0.0.devYYYYMMDDHHMM`) | **ported, published** |
 

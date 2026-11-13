@@ -3,7 +3,7 @@
 #
 # Run recipes/android/sdl3.sh for the same ABI first.
 #
-# Differs from the 2.3.1 recipe in three ways worth knowing:
+# Differs from the 2.3.2 recipe in three ways worth knowing:
 #
 #   * No pre-cythonize step. Kivy 3 imports Cython unconditionally and
 #     cythonizes during the build; can_use_cython — the switch that disabled

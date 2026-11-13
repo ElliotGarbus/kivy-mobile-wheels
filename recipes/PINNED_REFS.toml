@@ -11,7 +11,7 @@
 # Recipes NOT listed here are pinned by construction — they build from a
 # versioned release tarball or PyPI sdist with a recorded SHA-256, which is a
 # stronger pin than a git commit. That covers Android SDL2 (2.32.10 and its
-# three satellites) and Kivy 2.3.1.
+# three satellites) and Kivy 2.3.2.
 #
 # Resolved 2026-11-06 via `git ls-remote <repo> <ref>`.
 #
